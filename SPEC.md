@@ -28,6 +28,10 @@ on every run against a fixture (`scripts/run-check.ts --now 2026-09-13`).
 - `FindingVerdict` has no "info" value. Where this spec calls an outcome **info**,
   return `verdict: 'unverifiable'` with `severity: 'info'`. It is recorded but counts
   neither for nor against the venue.
+- **One major per check.** Before scoring, if a check returns more than one
+  `contradicted`/`major` finding, only the first stays major. The rest are shown at
+  **minor**, with a note saying why. A single check can therefore never reach RED alone
+  (two majors). Fatal findings are unaffected.
 - Stage 1 checks must cost 0 credits. Stage 2 checks record their credit cost.
 - Title lookups in Scopus and DOAJ are for journals only. A conference name is never
   matched against a journal registry.
@@ -192,7 +196,8 @@ No network. Compare the registrable domain of `claims.contactEmail` with that of
 
 No network. Pure reasoning over extracted claims. It needs `claims.eventDate` (ISO start
 date, added to `Claims` for the second rule). Dates are parsed by a fixed parser in
-code, never by the LLM at check time. Each rule that fires produces its own finding.
+code, never by the LLM at check time. Each rule that fires produces its own finding. Under the one-major-per-check rule,
+only the first major counts as major.
 
 - `promisedTurnaroundDays` ≤ 7 for a peer-reviewed venue → `contradicted`, **major**.
   Quote the promise from `rawText`. Real peer review does not complete in 48 hours.

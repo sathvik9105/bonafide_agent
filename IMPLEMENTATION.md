@@ -196,7 +196,7 @@ export function score(findings: Finding[]): CaseVerdict {
   const major = contradicted.filter(f => f.severity === 'major');
   const verified = findings.filter(f => f.verdict === 'supported');
 
-  if (findings.some(f => f.id === 'people.callback' && f.excerpt === 'DENIES')) return 'RED';
+  if (findings.some(f => f.id === 'people.callback' && (f.excerpt === 'DENIES' || f.excerpt === 'UNAWARE'))) return 'RED';
   if (fatal.length >= 1) return 'RED';
   if (major.length >= 2) return 'RED';
   if (major.length === 1) return 'AMBER';
@@ -204,6 +204,9 @@ export function score(findings: Finding[]): CaseVerdict {
   return 'AMBER';                                  // insufficient evidence
 }
 ```
+
+Before scoring, `capMajorsPerCheck()` keeps only the first major contradiction from each
+check. Any extras stay in the table at minor, so no single check can reach RED on its own.
 
 Note the final fallthrough: **AMBER means "not enough evidence", not "slightly
 suspicious"**. Say that in the UI. It is the honest answer for an obscure but real

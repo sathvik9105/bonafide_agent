@@ -1,6 +1,6 @@
 // timeline.plausibility — see SPEC.md. No network; dates parsed deterministically.
 import { DAY_MS, parseDate, startOfUtcDay } from '../normalise.ts';
-import type { CheckContext, Claims, Finding } from '../types.ts';
+import type { CheckContext, Finding } from '../types.ts';
 import { finding, guard, quoteLine, type CheckMeta } from './finding.ts';
 
 export const id = 'timeline.plausibility';
@@ -13,7 +13,7 @@ const REVIEW_WORD = /review|decision|accept|publish|notification/i;
 const EXTENSION =
   /\b(final|last|second|2nd|third|3rd|fourth|4th)\s+(deadline\s+)?extension\b|\blast chance\b|\bextended\s+(again|once more)\b/i;
 
-export function appliesTo(_c: Claims): boolean {
+export function appliesTo(): boolean {
   return true;
 }
 

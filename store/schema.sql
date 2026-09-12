@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS cases (
 CREATE TABLE IF NOT EXISTS outreach (
   id TEXT PRIMARY KEY,
   case_id TEXT NOT NULL,
+  kind TEXT NOT NULL DEFAULT 'speaker', -- speaker | disposition
   to_email TEXT NOT NULL,
   person_name TEXT NOT NULL,
   subject TEXT NOT NULL,

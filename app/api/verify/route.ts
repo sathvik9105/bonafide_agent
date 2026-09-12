@@ -1,8 +1,9 @@
 import { z } from 'zod';
 import { verifyInvitation } from '../../../core/orchestrator.ts';
 import { setCacheEnabled } from '../../../providers/cache.ts';
+import { mailMode } from '../../../providers/mail.ts';
 
-const BodySchema = z.object({ text: z.string() });
+const BodySchema = z.object({ text: z.string(), sendMail: z.boolean().optional() });
 const MAX_CHARS = 50_000;
 
 export async function POST(request: Request) {
@@ -18,7 +19,9 @@ export async function POST(request: Request) {
   setCacheEnabled(!fresh && process.env.USE_CACHE !== '0');
 
   try {
-    return Response.json(await verifyInvitation(text));
+    // Live email needs MAIL_MODE=live on the server AND this run's own opt-in.
+    const result = await verifyInvitation(text, { live: parsed.success && parsed.data.sendMail === true });
+    return Response.json({ ...result, mailMode: mailMode() });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     console.error('verify failed:', message);

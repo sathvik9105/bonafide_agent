@@ -265,6 +265,25 @@ colour, not to drive the verdict. **First to cut if credits run short.**
 
 ## Stage 3 — the callback
 
+### Speaker targeting and `people.outreach` — **MINOR**
+
+Applies when `claims.people` is non-empty. Until `people.reality` (Stage 2) exists,
+addresses come only from the invitation text (`Person.email`).
+
+Contact up to two people, in the order the invitation lists them, whose address:
+
+- is present and parseable,
+- is not a free mail provider (same list as `contact.domain`),
+- is not on the registrable domain of the venue site or of the contact address, since a
+  reply from there would come from the organisers.
+
+- At least one person qualifies → one outreach email each, using the template below, with
+  subject token `[BF-<outreach id>]`. No finding is added. The emails appear in their own
+  panel, and the case status becomes `awaiting_reply`.
+- People are listed but none qualifies → `contradicted`, **minor**, id `people.outreach`.
+  The excerpt lists each person and why they were skipped. "No listed speaker has a
+  discoverable institutional address" is a signal, but a weak one.
+
 ### `people.callback` — **overrides everything**
 
 Not a normal check; produced by the reply handler, appended after the fact.
@@ -273,9 +292,10 @@ Not a normal check; produced by the reply handler, appended after the fact.
 `sourceUrl` is null. `note` quotes the relevant sentence from the reply.
 
 - `DENIES` or `UNAWARE` → forces **RED**, regardless of every other finding. A named
-  keynote saying "I never agreed to this" is the strongest evidence obtainable.
+  keynote saying "I never agreed to this" is the strongest evidence obtainable. Recorded
+  as `contradicted`, **fatal**.
 - `CONFIRMS` → `supported`, major severity, counts toward the GREEN threshold.
-- `UNCLEAR` → `unverifiable`, no effect.
+- `UNCLEAR` → `unverifiable`, severity info, no effect.
 
 Outreach email template — keep it this short:
 
@@ -294,3 +314,46 @@ Outreach email template — keep it this short:
 No branding, no automated-message footer, no HTML. It has to read like a student wrote
 it, because a student did — the agent is acting on their behalf, and a marketing-shaped
 email gets binned.
+
+The subject, token and body are all built in code from the template above. There is no
+LLM, so every speaker gets exactly this wording. Emails are signed with
+`BONAFIDE_USER_NAME`.
+
+### Reply handling
+
+- **Polling.** The poller (`instrumentation.ts` → `startReplyPoller`, every 30s) searches
+  INBOX only when a speaker email was actually sent and has no reply yet. In dry mode
+  nothing is sent, so it never connects.
+- **Matching.** A message matches by the `[BF-<id>]` token in its subject. Our own
+  outgoing email (sent from our address, subject without `Re:`) is ignored.
+- **Classifying.** Quoted history is stripped first (`>` lines, "On … wrote:",
+  "Original Message"). `classifyReply()` returns the class and the sentence that decided
+  it. If that sentence isn't literally in the reply, the reply's first sentence is quoted
+  instead.
+- **Re-scoring.** The first reply per outreach wins. It appends a `people.callback`
+  finding, re-applies the one-major cap, and re-scores the case. The status returns to
+  `complete` once every contacted speaker has replied.
+- **Dry-mode testing.** The UI can simulate a reply
+  (`POST /api/outreach/<id>/simulate-reply`), which runs exactly the same path.
+
+### Disposition email
+
+- RED → a decline. AMBER → a hold note. GREEN → nothing.
+- It is addressed to `claims.contactEmail`. If the invitation has no contact address, it
+  is drafted but never sent.
+- The fast LLM model drafts it, with a fixed template as fallback. It names what could
+  not be verified, using neutral phrases for the fatal and major contradictions, and
+  never accuses anyone of fraud. A decline also asks the sender to remove the address from
+  their list.
+- It is drafted once when the run completes, and again whenever a reply changes the
+  verdict to RED or AMBER.
+
+### Sending
+
+- `MAIL_MODE=dry` (the default) writes every email to the `outreach` table and logs it.
+  Nothing is sent.
+- Live sending needs **both** `MAIL_MODE=live` on the server and the run's own opt-in
+  (`sendMail: true`, the UI checkbox). This is hard rule 7: live is opt-in per run.
+- `MAIL_REDIRECT_TO`, when set, delivers every live email to that address instead, so
+  live sending can be tested without contacting real people. The intended recipient stays
+  in the database.

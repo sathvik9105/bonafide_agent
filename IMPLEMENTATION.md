@@ -14,7 +14,9 @@ bonafide/
     case/[id]/page.tsx          # permalink to a stored case
     api/verify/route.ts         # POST, streams findings via SSE
     api/case/[id]/route.ts      # GET case state
-    api/poll-replies/route.ts   # GET, triggers one IMAP sweep (called by a timer)
+    api/poll-replies/route.ts   # GET, triggers one IMAP sweep (the timer calls pollReplies directly)
+    api/outreach/[id]/simulate-reply/route.ts  # POST, dry-mode stand-in for a real reply
+  instrumentation.ts            # starts the 30s reply poller once per server process
   core/
     types.ts                    # Finding, Claims, Case, Verdict
     extract.ts                  # Stage 0 — claims from raw text
@@ -23,6 +25,7 @@ bonafide/
     normalise.ts                # pure helpers: titles, ISSNs, domains, dates
     publisher.ts                # deterministic publisher-name comparison
     narrate.ts                  # LLM writes the summary + disposition email
+    callback.ts                 # speaker targeting, outreach, disposition, replies, poller
     checks/
       index.ts                  # registry of all checks
       finding.ts                # finding builder, guard(), quoteLine()

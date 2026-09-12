@@ -23,4 +23,8 @@ One line per surprise. Newest at the bottom.
 - **Registries name the same publisher differently.** DOAJ says "IEEE" and Scopus says "Institute of Electrical and Electronics Engineers Inc.". Without acronym handling, the publisher fallback would wrongly flag legitimate IEEE journals.
 - **Scopus marks eLife as Inactive (coverage 2012–2024).** A real, well-known journal will produce `indexing.scopus` = contradicted/major if an invitation claims Scopus indexing, which is correct under the rule, but worth knowing before a demo.
 - **RDAP returns 404 for unregistered domains** (all our fake fixture domains). `domain.age` treats that as unverifiable, not as evidence of anything.
+- **Phase 2 (the act layer):**
+  - The IMAP poller searches per `[BF-xxxxxx]` token rather than scanning the inbox, so a busy personal Gmail stays cheap (about 4.7s per sweep, most of it connecting). Message bodies must be downloaded after the `fetch()` iterator finishes, because imapflow can't run other commands mid-stream.
+  - Gemini's fast model writes serviceable outreach emails but not always grammatical ones ("verifying an invitation details"). Speaker emails therefore use the fixed SPEC.md template only. The LLM still drafts the disposition email, with the template as fallback.
+  - Without `BONAFIDE_USER_NAME`, emails are signed with `MAIL_FROM_NAME` ("BonaFide Verification"), which is exactly the branding SPEC.md says gets binned. Set it before any live run.
 - **Node 22 can run the TypeScript sources directly** once imports use `.ts` extensions (`allowImportingTsExtensions` in tsconfig). No tsx or build step is needed for scripts.

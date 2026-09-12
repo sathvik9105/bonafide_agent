@@ -13,7 +13,7 @@ export type Finding = {
   costCredits: number; // 0 for free checks
 };
 
-export type Person = { name: string; affiliation: string | null; role: string };
+export type Person = { name: string; affiliation: string | null; role: string; email: string | null };
 
 export type Claims = {
   venueName: string;
@@ -43,6 +43,23 @@ export type Case = {
   verdict: CaseVerdict | null;
   narrative: string | null;
   status: CaseStatus;
+};
+
+export type ReplyClass = 'CONFIRMS' | 'DENIES' | 'UNAWARE' | 'UNCLEAR';
+export type OutreachKind = 'speaker' | 'disposition';
+
+export type Outreach = {
+  id: string; // 6 hex chars; speaker emails carry it in the subject as [BF-<id>]
+  caseId: string;
+  kind: OutreachKind;
+  toEmail: string; // '' when the invitation gave no address
+  personName: string;
+  subject: string;
+  body: string;
+  sentAt: number | null; // null = draft only (dry run, or not sendable)
+  replyBody: string | null;
+  replyClass: ReplyClass | null;
+  replyAt: number | null;
 };
 
 export type CheckContext = {

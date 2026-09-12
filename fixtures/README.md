@@ -10,6 +10,7 @@ The people in `predatory-1.txt` are invented. No fixture is ever used as an emai
 | `hijacked-2.txt` | Real Scopus-only journal (TPAMI, 0162-8828) with a made-up publisher | `identity.url_match` publisher fallback, clear mismatch (major) |
 | `predatory-2-no-issn.txt` | `predatory-1` with the ISSN removed ("published in the conference proceedings") | Scopus claim becomes unverifiable; verdict rests on contact + timeline |
 | `predatory-3-polished.txt` | Fake conference with no ISSN, its own-domain email, a 6-week review and no pressure language | The Stage 1 blind spot: nothing to contradict |
+| `speakers-1.txt` | Plausible fake symposium naming speakers with addresses on reserved `example.edu` / `example.ac.uk` domains, plus one Gmail | Speaker targeting (2 contacted, the Gmail one skipped), AMBER that a simulated DENIES/UNAWARE reply flips to RED |
 | `legit-1.txt` | Real journal (PLOS ONE, 1932-6203) on its real site and domain | Every applicable check `supported` |
 
 Run with a fixed date so the date-based checks give the same result on every run:

@@ -1,15 +1,21 @@
-// Deterministic orchestrator: extract claims → plan checks → run stages → score → persist.
-// The LLM only extracts claims here. The verdict comes from core/scoring.ts.
+// Deterministic orchestrator: extract claims → plan checks → run stages → score → act → persist.
+// The LLM only extracts claims and drafts prose here. The verdict comes from core/scoring.ts.
 import { extractClaims } from '../providers/llm.ts';
-import { createCase, getCase, updateCase } from '../store/db.ts';
+import { createCase, getCase, listOutreach, updateCase } from '../store/db.ts';
+import { noAddressFinding, pickSpeakerTargets, sendDisposition, startOutreach } from './callback.ts';
 import { checks as registry } from './checks/index.ts';
 import { truncate } from './normalise.ts';
 import { capMajorsPerCheck, score } from './scoring.ts';
-import type { Case, Check, CheckContext, Claims, Finding } from './types.ts';
+import type { Case, Check, CheckContext, Claims, Finding, Outreach } from './types.ts';
 
 export type PlanEntry = { id: string; stage: 1 | 2; scheduled: boolean };
 export type Plan = { claimCount: number; scheduledCount: number; entries: PlanEntry[] };
-export type VerifyResult = { case: Case; plan: Plan | null };
+export type VerifyResult = { case: Case; plan: Plan | null; outreach: Outreach[] };
+export type VerifyOptions = {
+  now?: Date;
+  /** This run's opt-in to live email. Still requires MAIL_MODE=live on the server. */
+  live?: boolean;
+};
 
 /** How many substantive claims the invitation made (name and type are always present). */
 export function countClaims(c: Claims): number {
@@ -66,8 +72,9 @@ async function runStage(scheduled: Check[], ctx: CheckContext): Promise<Finding[
   return settled.flatMap((r, i) => (r.status === 'fulfilled' ? r.value : [crashFinding(scheduled[i], r.reason)]));
 }
 
-export async function verifyInvitation(rawInput: string, opts: { now?: Date } = {}): Promise<VerifyResult> {
+export async function verifyInvitation(rawInput: string, opts: VerifyOptions = {}): Promise<VerifyResult> {
   const now = opts.now ?? new Date();
+  const live = opts.live === true;
   const created = createCase(rawInput);
 
   let claims: Claims;
@@ -89,7 +96,7 @@ export async function verifyInvitation(rawInput: string, opts: { now?: Date } = 
       },
     ];
     updateCase(created.id, { findings, verdict: score(findings), status: 'complete' });
-    return { case: getCase(created.id) ?? created, plan: null };
+    return { case: getCase(created.id) ?? created, plan: null, outreach: [] };
   }
   updateCase(created.id, { claims });
 
@@ -103,7 +110,23 @@ export async function verifyInvitation(rawInput: string, opts: { now?: Date } = 
     findings.push(...(await runStage(scheduled, ctx)));
   }
 
+  const selection = pickSpeakerTargets(claims);
+  const outreachFinding = noAddressFinding(claims, selection);
+  if (outreachFinding) findings.push(outreachFinding);
+
   const capped = capMajorsPerCheck(findings);
-  updateCase(created.id, { findings: capped, verdict: score(capped), status: 'complete' });
-  return { case: getCase(created.id) ?? created, plan };
+  const verdict = score(capped);
+  updateCase(created.id, {
+    findings: capped,
+    verdict,
+    status: selection.targets.length > 0 ? 'awaiting_reply' : 'complete',
+  });
+
+  // Act: ask the speakers and dispose of the invitation. Drafts are written in parallel.
+  await Promise.all([
+    startOutreach(created.id, claims, selection.targets, { live, now }),
+    sendDisposition(created.id, claims, capped, verdict, { live }),
+  ]);
+
+  return { case: getCase(created.id) ?? created, plan, outreach: listOutreach(created.id) };
 }

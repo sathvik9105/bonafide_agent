@@ -10,9 +10,9 @@ type CaseState = { case: Case; outreach: Outreach[]; mailMode: MailMode };
 type VerifyResponse = CaseState & { plan: Plan | null; credits: CreditSummary | null };
 
 const VERDICT_STYLE: Record<CaseVerdict, { box: string; title: string }> = {
-  RED: { box: 'border-red-600 bg-red-50 text-red-950', title: 'RED: evidence contradicts this invitation' },
-  AMBER: { box: 'border-amber-500 bg-amber-50 text-amber-950', title: 'AMBER: not enough evidence to clear it' },
-  GREEN: { box: 'border-green-600 bg-green-50 text-green-950', title: 'GREEN: independently supported' },
+  RED: { box: 'border-red-500 bg-red-50/60 text-red-950', title: 'RED: evidence contradicts this invitation' },
+  AMBER: { box: 'border-amber-400 bg-amber-50/60 text-amber-950', title: 'AMBER: not enough evidence to clear it' },
+  GREEN: { box: 'border-emerald-500 bg-emerald-50/60 text-emerald-950', title: 'GREEN: independently supported' },
 };
 
 function verdictMeaning(verdict: CaseVerdict, findings: Finding[]): string {
@@ -43,7 +43,7 @@ function sortFindings(findings: Finding[]): Finding[] {
 }
 
 const VERDICT_CELL = {
-  supported: 'text-green-700',
+  supported: 'text-emerald-700',
   contradicted: 'text-red-700',
   unverifiable: 'text-zinc-500',
 } as const;
@@ -93,19 +93,19 @@ function ReplyBlock({ o, mailMode, onUpdate }: { o: Outreach; mailMode: MailMode
 
   if (o.replyClass) {
     return (
-      <div className="mt-3 border-t border-zinc-100 pt-2">
+      <div className="mt-4 border-t border-zinc-100 pt-3">
         <div className="flex items-center gap-2">
-          <span className={`rounded px-2 py-0.5 text-xs font-semibold ${REPLY_STYLE[o.replyClass]}`}>{o.replyClass}</span>
+          <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${REPLY_STYLE[o.replyClass]}`}>{o.replyClass}</span>
           <span className="text-xs text-zinc-500">Reply received {o.replyAt ? new Date(o.replyAt).toLocaleString() : ''}</span>
         </div>
-        <pre className="mt-1 whitespace-pre-wrap font-sans text-zinc-700">{o.replyBody}</pre>
+        <pre className="mt-2 whitespace-pre-wrap font-sans leading-relaxed text-zinc-700">{o.replyBody}</pre>
       </div>
     );
   }
 
   if (mailMode === 'live') {
     return (
-      <p className="mt-3 text-xs text-zinc-500">
+      <p className="mt-4 border-t border-zinc-100 pt-3 text-xs text-zinc-500">
         {o.sentAt ? 'Waiting for a reply. The inbox is checked every 30 seconds.' : 'Not sent, so no reply will arrive.'}
       </p>
     );
@@ -131,19 +131,19 @@ function ReplyBlock({ o, mailMode, onUpdate }: { o: Outreach; mailMode: MailMode
   }
 
   return (
-    <div className="mt-3 border-t border-zinc-100 pt-2">
+    <div className="mt-4 border-t border-zinc-100 pt-3">
       <label className="text-xs text-zinc-500">Dry run: simulate this speaker&apos;s reply</label>
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
         rows={2}
-        className="mt-1 w-full rounded border border-zinc-300 p-2 text-sm"
+        className="mt-2 w-full rounded-lg border border-zinc-200 p-2.5 text-sm focus:border-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-100"
       />
       <button
         type="button"
         onClick={simulate}
         disabled={busy || !text.trim()}
-        className="mt-1 rounded border border-zinc-900 px-3 py-1 text-xs font-medium disabled:opacity-40"
+        className="mt-2 rounded-lg border border-indigo-200 px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-50 disabled:opacity-40"
       >
         {busy ? 'Classifying…' : 'Simulate reply'}
       </button>
@@ -154,18 +154,18 @@ function ReplyBlock({ o, mailMode, onUpdate }: { o: Outreach; mailMode: MailMode
 
 function OutreachCard({ o, mailMode, onUpdate }: { o: Outreach; mailMode: MailMode; onUpdate: (s: CaseState) => void }) {
   return (
-    <div className="rounded border border-zinc-200 p-3 text-sm">
+    <div className="rounded-xl border border-zinc-200 bg-white p-5 text-sm shadow-sm">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <div>
           <span className="font-medium">{o.personName}</span>{' '}
           <span className="text-zinc-500">&lt;{o.toEmail || 'no address'}&gt;</span>
         </div>
-        <span className={`rounded px-2 py-0.5 text-xs ${o.sentAt ? 'bg-green-100 text-green-800' : 'bg-zinc-100 text-zinc-600'}`}>
+        <span className={`rounded-full px-2.5 py-0.5 text-xs ${o.sentAt ? 'bg-emerald-50 text-emerald-700' : 'bg-zinc-100 text-zinc-600'}`}>
           {sendStatus(o, mailMode)}
         </span>
       </div>
-      <div className="mt-2 font-medium">{o.subject}</div>
-      <pre className="mt-1 whitespace-pre-wrap font-sans text-zinc-700">{o.body}</pre>
+      <div className="mt-3 font-medium text-zinc-900">{o.subject}</div>
+      <pre className="mt-2 whitespace-pre-wrap font-sans leading-relaxed text-zinc-700">{o.body}</pre>
       {o.kind === 'speaker' && <ReplyBlock o={o} mailMode={mailMode} onUpdate={onUpdate} />}
     </div>
   );
@@ -236,49 +236,52 @@ export default function Home() {
   const outreachFinding = findings.find((f) => f.id === 'people.outreach');
 
   return (
-    <main className="mx-auto w-full max-w-6xl flex-1 bg-white px-4 py-8 text-zinc-900">
-      <h1 className="text-2xl font-semibold">BonaFide</h1>
-      <p className="mt-1 text-sm text-zinc-600">
+    <main className="mx-auto w-full max-w-[680px] flex-1 px-4 py-16">
+      <p className="text-xs font-medium uppercase tracking-[0.2em] text-zinc-500">Invitation verification</p>
+      <h1 className="mt-3 font-serif text-5xl tracking-tight text-zinc-900">BonaFide</h1>
+      <p className="mt-4 text-base leading-relaxed text-foreground/60">
         Paste an academic conference or journal invitation. Free registries check its claims, named speakers are asked
         whether they agreed to take part, and a fixed rule decides the verdict.
       </p>
 
-      <form onSubmit={submit} className="mt-6 space-y-3">
+      <form onSubmit={submit} className="mt-10 space-y-4">
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
           rows={12}
           placeholder="Paste the full invitation email here…"
-          className="w-full rounded border border-zinc-300 p-3 font-mono text-sm"
+          className="w-full rounded-lg border border-zinc-200 bg-white p-4 font-mono text-sm leading-relaxed shadow-sm focus:border-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-100"
         />
         <div className="flex flex-wrap items-center gap-4">
           <button
             type="submit"
             disabled={loading || !text.trim()}
-            className="rounded bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
+            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 disabled:opacity-40"
           >
             {loading ? 'Checking…' : 'Verify invitation'}
           </button>
           <label className="flex items-center gap-2 text-sm text-zinc-600">
-            <input type="checkbox" checked={fresh} onChange={(e) => setFresh(e.target.checked)} />
+            <input type="checkbox" className="accent-indigo-600" checked={fresh} onChange={(e) => setFresh(e.target.checked)} />
             Fresh run (skip cache)
           </label>
           <label className="flex items-center gap-2 text-sm text-zinc-600">
-            <input type="checkbox" checked={sendMail} onChange={(e) => setSendMail(e.target.checked)} />
+            <input type="checkbox" className="accent-indigo-600" checked={sendMail} onChange={(e) => setSendMail(e.target.checked)} />
             Send emails for real (needs MAIL_MODE=live on the server)
           </label>
           {loading && <span className="text-sm text-zinc-500">Checking claims and drafting emails, about 20 seconds.</span>}
         </div>
       </form>
 
-      {error && <div className="mt-6 rounded border border-red-300 bg-red-50 p-3 text-sm text-red-800">{error}</div>}
+      {error && <div className="mt-8 rounded-lg border border-red-200 bg-red-50/60 px-4 py-3 text-sm text-red-800">{error}</div>}
 
       {result && c && c.verdict && (
-        <section className="mt-8 space-y-6">
-          {flip && <div className="rounded bg-zinc-900 px-3 py-2 text-sm font-medium text-white">{flip}</div>}
+        <section className="mt-14 space-y-12">
+          {flip && (
+            <div className="rounded-lg border border-indigo-200 bg-indigo-50/60 px-4 py-3 text-sm font-medium text-indigo-900">{flip}</div>
+          )}
 
-          <div className={`rounded border-l-4 p-4 ${VERDICT_STYLE[c.verdict].box}`}>
-            <div className="text-lg font-semibold">{VERDICT_STYLE[c.verdict].title}</div>
+          <div className={`rounded-lg border-l-4 px-6 py-5 ${VERDICT_STYLE[c.verdict].box}`}>
+            <div className="font-serif text-2xl">{VERDICT_STYLE[c.verdict].title}</div>
             <p className="mt-1 text-sm">{verdictMeaning(c.verdict, findings)}</p>
             {c.status === 'awaiting_reply' && (
               <p className="mt-2 text-xs opacity-80">Waiting for speaker replies. This page updates on its own.</p>
@@ -293,17 +296,17 @@ export default function Home() {
 
           {result.plan && (
             <div>
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">Plan</h2>
+              <h2 className="font-serif text-2xl text-zinc-900">Plan</h2>
               <p className="mt-1 text-sm">
                 Planned {result.plan.scheduledCount} of {result.plan.entries.length} checks based on{' '}
                 {result.plan.claimCount} claims.
                 {result.credits && ` Anakin credits spent: ${result.credits.spent} of ${result.credits.limit}.`}
               </p>
-              <ul className="mt-2 flex flex-wrap gap-2 text-xs">
+              <ul className="mt-4 flex flex-wrap gap-2 text-xs">
                 {result.plan.entries.map((e) => (
                   <li
                     key={e.id}
-                    className={`rounded px-2 py-1 font-mono ${e.scheduled ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-400 line-through'}`}
+                    className={`rounded-full border px-3 py-1 font-mono ${e.scheduled ? 'border-zinc-300 text-zinc-800' : 'border-zinc-200 text-zinc-400 line-through'}`}
                   >
                     {e.id}
                   </li>
@@ -314,8 +317,8 @@ export default function Home() {
 
           {c.claims && (
             <div>
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">Extracted claims</h2>
-              <dl className="mt-2 grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-sm">
+              <h2 className="font-serif text-2xl text-zinc-900">Extracted claims</h2>
+              <dl className="mt-4 grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2 text-sm">
                 {claimRows(c.claims).map(([k, v]) => (
                   <div key={k} className="contents">
                     <dt className="text-zinc-500">{k}</dt>
@@ -327,46 +330,52 @@ export default function Home() {
           )}
 
           <div>
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">Evidence</h2>
-            <div className="mt-2 overflow-x-auto">
-              <table className="w-full min-w-[900px] border-collapse text-left text-sm">
+            <h2 className="font-serif text-2xl text-zinc-900">Evidence</h2>
+            <div className="mt-4 overflow-x-auto">
+              <table className="w-full table-fixed border-collapse text-left text-sm">
                 <thead>
-                  <tr className="border-b border-zinc-300 text-xs uppercase text-zinc-500">
-                    <th className="py-2 pr-3">Result</th>
-                    <th className="py-2 pr-3">Severity</th>
-                    <th className="py-2 pr-3">Check</th>
-                    <th className="py-2 pr-3">Evidence</th>
-                    <th className="py-2 pr-3">Source</th>
-                    <th className="py-2 pr-3 text-right">Credits</th>
+                  <tr className="border-b border-zinc-200 text-xs uppercase tracking-wide text-zinc-500">
+                    <th className="w-[104px] pb-3 pr-4 font-medium">Result</th>
+                    <th className="w-[64px] pb-3 pr-4 font-medium">Severity</th>
+                    <th className="w-[128px] pb-3 pr-4 font-medium">Check</th>
+                    <th className="pb-3 pr-4 font-medium">Evidence</th>
+                    <th className="w-[148px] pb-3 pr-4 font-medium">Source</th>
+                    <th className="w-[60px] pb-3 text-right font-medium">Credits</th>
                   </tr>
                 </thead>
                 <tbody>
                   {sortFindings(findings).map((f, i) => (
-                    <tr key={`${f.id}-${i}`} className="border-b border-zinc-100 align-top">
-                      <td className={`py-2 pr-3 font-medium whitespace-nowrap ${VERDICT_CELL[f.verdict]}`}>
+                    <tr key={`${f.id}-${i}`} className="border-b border-zinc-100 align-top last:border-0">
+                      <td className={`w-28 py-4 pr-4 font-medium whitespace-nowrap ${VERDICT_CELL[f.verdict]}`}>
                         {VERDICT_MARK[f.verdict]} {f.verdict}
                       </td>
-                      <td className="py-2 pr-3 whitespace-nowrap">{f.severity}</td>
-                      <td className="py-2 pr-3">
+                      <td className="w-16 py-4 pr-4 whitespace-nowrap text-zinc-600">{f.severity}</td>
+                      <td className="py-4 pr-4">
                         <div className="font-medium">{f.label}</div>
-                        <div className="font-mono text-xs text-zinc-400">{f.id}</div>
+                        <div className="font-mono text-xs text-zinc-400 [overflow-wrap:anywhere]">{f.id}</div>
                       </td>
-                      <td className="py-2 pr-3">
+                      <td className="py-4 pr-4 break-words">
                         <div>{f.note}</div>
                         {f.excerpt && (
-                          <div className="mt-1 rounded bg-zinc-50 px-2 py-1 font-mono text-xs text-zinc-700">{f.excerpt}</div>
+                          <div className="mt-2 rounded-md bg-zinc-50 px-2.5 py-1.5 font-mono text-xs leading-relaxed text-zinc-700 [overflow-wrap:anywhere]">{f.excerpt}</div>
                         )}
                       </td>
-                      <td className="py-2 pr-3">
+                      <td className="truncate py-4 pr-4">
                         {f.sourceUrl ? (
-                          <a href={f.sourceUrl} target="_blank" rel="noopener noreferrer" className="break-all text-blue-700 underline">
+                          <a
+                            href={f.sourceUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title={new URL(f.sourceUrl).host}
+                            className="whitespace-nowrap text-indigo-600 hover:text-indigo-700 hover:underline"
+                          >
                             {new URL(f.sourceUrl).host}
                           </a>
                         ) : (
                           <span className="text-zinc-400">—</span>
                         )}
                       </td>
-                      <td className="py-2 pr-3 text-right tabular-nums text-zinc-500">{f.costCredits || ''}</td>
+                      <td className="py-4 text-right tabular-nums text-zinc-500">{f.costCredits || ''}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -375,7 +384,7 @@ export default function Home() {
           </div>
 
           <div>
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">Speaker verification</h2>
+            <h2 className="font-serif text-2xl text-zinc-900">Speaker verification</h2>
             {speakers.length === 0 ? (
               <p className="mt-1 text-sm text-zinc-600">
                 {c.claims?.people.length
@@ -383,7 +392,7 @@ export default function Home() {
                   : 'The invitation names no speakers, so there is nobody to ask.'}
               </p>
             ) : (
-              <div className="mt-2 space-y-3">
+              <div className="mt-4 space-y-4">
                 {speakers.map((o) => (
                   <OutreachCard key={o.id} o={o} mailMode={result.mailMode} onUpdate={applyCaseState} />
                 ))}
@@ -392,13 +401,13 @@ export default function Home() {
           </div>
 
           <div>
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">Disposition</h2>
+            <h2 className="font-serif text-2xl text-zinc-900">Disposition</h2>
             {dispositions.length === 0 ? (
               <p className="mt-1 text-sm text-zinc-600">
                 {c.verdict === 'GREEN' ? 'No disposition email for a GREEN verdict.' : 'No disposition email yet.'}
               </p>
             ) : (
-              <div className="mt-2 space-y-3">
+              <div className="mt-4 space-y-4">
                 {dispositions.map((o) => (
                   <OutreachCard key={o.id} o={o} mailMode={result.mailMode} onUpdate={applyCaseState} />
                 ))}

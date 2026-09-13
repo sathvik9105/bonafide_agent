@@ -192,16 +192,11 @@ export async function applyReply(
   if (!c?.claims) return null;
 
   const reply = stripQuotedReply(rawReply) || rawReply.trim();
-  let replyClass: ReplyClass = 'UNCLEAR';
-  let quote = '';
-  try {
-    const r = await classifyReply({ replyText: reply, personName: o.personName, venueName: c.claims.venueName });
-    replyClass = r.classification;
-    quote = r.quote;
-  } catch (e) {
-    console.error(`[callback] classifying reply to ${o.id} failed; recording UNCLEAR: ${e instanceof Error ? e.message : e}`);
-  }
-  quote = verifiedQuote(reply, quote);
+  // If classification fails (e.g. a network blip), nothing is recorded: the first reply wins, so recording
+  // UNCLEAR here would lose the speaker's real answer for good. The next poll retries it instead.
+  const classified = await classifyReply({ replyText: reply, personName: o.personName, venueName: c.claims.venueName });
+  const replyClass: ReplyClass = classified.classification;
+  const quote = verifiedQuote(reply, classified.quote);
   recordOutreachReply(o.id, { body: reply, replyClass, at: opts.receivedAt ?? Date.now() });
 
   const findings = capMajorsPerCheck([...(c.findings ?? []), callbackFinding(o, c.claims, replyClass, quote)]);
@@ -238,8 +233,13 @@ export async function pollReplies(): Promise<PollSummary> {
     });
     summary.fetched = replies.length;
     for (const r of replies) {
-      const outcome = await applyReply(r.token, r.text, { source: 'imap', receivedAt: r.receivedAt });
-      if (outcome) summary.applied.push(outcome);
+      try {
+        const outcome = await applyReply(r.token, r.text, { source: 'imap', receivedAt: r.receivedAt });
+        if (outcome) summary.applied.push(outcome);
+      } catch (e) {
+        // Left unrecorded, so the next poll retries it. One bad reply must not block the others.
+        console.error(`[poller] reply to ${r.token} not applied, will retry: ${e instanceof Error ? e.message : e}`);
+      }
     }
     return summary;
   } finally {

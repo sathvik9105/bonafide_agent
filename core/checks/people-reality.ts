@@ -4,7 +4,7 @@ import { assessSupport } from '../../providers/llm.ts';
 import { mentionsWord, plainName, registrableDomain, surnameOf, truncate } from '../normalise.ts';
 import type { CheckContext, Claims, Finding, Person } from '../types.ts';
 import { finding, guard, type CheckMeta } from './finding.ts';
-import { hostOf, isInstitutionalFor, lineMentioningVenue, webSearchUrl } from './web.ts';
+import { hostOf, isAtAffiliation, lineMentioningVenue, nearNameAtAffiliation, webSearchUrl } from './web.ts';
 
 export const id = 'people.reality';
 export const stage = 2;
@@ -94,6 +94,17 @@ async function checkPerson(
     const topTitles = hits.slice(0, 3).map((h) => h.title || hostOf(h.url)).join('; ');
 
     if (aboutPerson.length === 0) {
+      const near = nearNameAtAffiliation(hits, person.name, person.affiliation);
+      if (near) {
+        return finding(meta, {
+          claim,
+          label,
+          verdict: 'unverifiable',
+          sourceUrl: near.hit.url,
+          excerpt: truncate(`${hostOf(near.hit.url)}: ${near.hit.title}`),
+          note: `No page names ${person.name}, but ${person.affiliation} lists a similarly named ${near.matched}, so this is left undecided (${onVenueSite}).`,
+        });
+      }
       return finding(meta, {
         claim,
         label,
@@ -104,7 +115,7 @@ async function checkPerson(
       });
     }
 
-    const institutional = aboutPerson.find((h) => isInstitutionalFor(h.url, person.affiliation));
+    const institutional = aboutPerson.find((h) => isAtAffiliation(h, person.affiliation));
     if (!institutional) {
       return finding(meta, {
         claim,

@@ -254,14 +254,26 @@ Implementation rules, all deterministic except `assessSupport()`:
 - **Search.** One search per person: `"<name without titles>" <affiliation>`, 5 results.
   - A result is **about the person** if its title, snippet or URL contains their surname
     as a whole word.
-  - It is **institutional** if its domain is academic (`.edu`, `.ac.xx`) or named after
-    the affiliation (`stanford.edu`, `iitb.ac.in`), and it is not a profile aggregator
-    (LinkedIn, ResearchGate, Google Scholar, ORCID, academia.edu, …).
+  - It is **at the stated affiliation** if its domain is named after the affiliation
+    (`stanford.edu`, `iitb.ac.in`, `kth.se`) or its title or snippet names the affiliation
+    (a `tuni.fi` page saying "Tampere University").
+  - An academic domain alone is **not** enough: a same-name academic at another
+    university is a different person. Found by `flip-1`, where a real same-name academic
+    at a US university was judged as the invitation's speaker at a Finnish university.
+  - Profile aggregators (LinkedIn, ResearchGate, Google Scholar, ORCID, academia.edu, …)
+    never count.
 - **Outcomes, in order:**
-  - No result is about the person → "cannot be found at the stated affiliation":
-    `contradicted`, **major**. The source link is a repeatable web search.
-  - Results name them, but none is institutional → `unverifiable`.
-  - The first institutional result is scraped and passed to `assessSupport()`. If the page
+  - No result names them, but a result at the stated affiliation names someone with the
+    same given name followed by a near-identical surname → `unverifiable`.
+    - "Near-identical" means one surname starts with the other, or they are within 1
+      letter (2 for surnames of 6+ letters): "Anna Berg" vs "Anna Bergman".
+    - A close-but-different name is ambiguous, not a denial.
+    - **Trade-off, accepted deliberately:** a fake speaker named one letter off a real
+      person at that university is not flagged by this check.
+  - Otherwise, when no result is about the person → "cannot be found at the stated
+    affiliation": `contradicted`, **major**. The source link is a repeatable web search.
+  - Results name them, but none is at the stated affiliation → `unverifiable`.
+  - The first result at the affiliation is scraped and passed to `assessSupport()`. If the page
     mentions the venue and the quoted line is literally on the page → `supported`, with
     that line as the excerpt.
   - The page is the person's own but has no mention → `contradicted`, **major**.
@@ -394,6 +406,10 @@ LLM, so every speaker gets exactly this wording. Emails are signed with
   "Original Message"). `classifyReply()` returns the class and the sentence that decided
   it. If that sentence isn't literally in the reply, the reply's first sentence is quoted
   instead.
+- **Classification failures.** If classification fails (network error, invalid model
+  output), **nothing is recorded**. The first reply per outreach wins, so recording
+  UNCLEAR would lose the speaker's real answer permanently. The poller retries on its next
+  sweep, and the simulate endpoint returns an error so the reply can be sent again.
 - **Re-scoring.** The first reply per outreach wins. It appends a `people.callback`
   finding, re-applies the one-major cap, and re-scores the case. The status returns to
   `complete` once every contacted speaker has replied.

@@ -1,10 +1,14 @@
 // Shared, deterministic helpers for the Stage 2 web checks.
 import {
   baseVenueName,
+  editDistance,
   isAcademicDomain,
   mentionsWord,
   normaliseTitle,
+  plainName,
   registrableDomain,
+  stripDiacritics,
+  surnameOf,
   truncate,
   venueAcronym,
 } from '../normalise.ts';
@@ -58,20 +62,62 @@ const AGGREGATORS = new Set([
 
 const AFFILIATION_FILLER = new Set([
   'university', 'institute', 'college', 'technology', 'school', 'department', 'national', 'research',
-  'sciences', 'science', 'center', 'centre', 'faculty', 'state', 'polytechnic', 'academy',
+  'sciences', 'science', 'center', 'centre', 'faculty', 'state', 'polytechnic', 'academy', 'royal',
+  'technical', 'applied',
 ]);
 
-/** URL looks like a page at the stated affiliation: an academic domain, or one named after it. */
-export function isInstitutionalFor(url: string, affiliation: string | null): boolean {
-  const domain = registrableDomain(url);
-  if (!domain || AGGREGATORS.has(domain)) return false;
-  if (isAcademicDomain(domain)) return true;
-  if (!affiliation) return false;
-  const label = domain.split('.')[0];
-  return normaliseTitle(affiliation)
+/** Words that identify an affiliation: "KTH Royal Institute of Technology" -> kth; "IIT Bombay" -> iit, bombay. */
+function affiliationWords(affiliation: string): { words: string[]; acronyms: string[] } {
+  const acronyms = (affiliation.match(/\b[A-Z]{2,6}\b/g) ?? []).map((a) => a.toLowerCase());
+  const words = normaliseTitle(affiliation)
     .split(' ')
-    .filter((w) => w.length >= 4 && !AFFILIATION_FILLER.has(w))
-    .some((w) => label.includes(w));
+    .filter((w) => w.length >= 4 && !AFFILIATION_FILLER.has(w));
+  return { words, acronyms };
+}
+
+export type WebHit = { url: string; title: string; snippet: string };
+
+/**
+ * The hit is at the stated affiliation: its domain is named after it, or its own title/snippet names it.
+ * An academic domain alone is not enough; a same-name academic elsewhere is a different person.
+ */
+export function isAtAffiliation(hit: WebHit, affiliation: string | null): boolean {
+  const domain = registrableDomain(hit.url);
+  if (!domain || !affiliation || AGGREGATORS.has(domain)) return false;
+  const { words, acronyms } = affiliationWords(affiliation);
+  const label = domain.split('.')[0];
+  if (words.some((w) => label.includes(w)) || acronyms.some((a) => label.startsWith(a))) return true;
+  const text = `${hit.title} ${hit.snippet}`;
+  return [...words, ...acronyms].some((w) => mentionsWord(text, w));
+}
+
+/**
+ * A hit at the stated affiliation naming someone with the same given name directly followed by a
+ * near-identical surname ("Anna Bergman" for "Anna Berg"). Ambiguous, so not a denial.
+ */
+export function nearNameAtAffiliation(
+  hits: WebHit[],
+  personName: string,
+  affiliation: string | null,
+): { hit: WebHit; matched: string } | null {
+  const given = stripDiacritics(plainName(personName).split(/\s+/)[0] ?? '').toLowerCase();
+  const surname = stripDiacritics(surnameOf(personName) ?? '').toLowerCase();
+  if (!given || !surname || given === surname) return null;
+
+  for (const hit of hits) {
+    if (!isAtAffiliation(hit, affiliation)) continue;
+    const words = stripDiacritics(`${hit.title} ${hit.snippet}`).split(/[^\p{L}'-]+/u).filter(Boolean);
+    for (let i = 0; i < words.length - 1; i++) {
+      if (words[i].toLowerCase() !== given) continue;
+      const candidate = words[i + 1].toLowerCase();
+      if (candidate.length < 3 || candidate === surname) continue;
+      const allowed = Math.max(candidate.length, surname.length) >= 6 ? 2 : 1;
+      if (candidate.startsWith(surname) || surname.startsWith(candidate) || editDistance(candidate, surname) <= allowed) {
+        return { hit, matched: `${words[i]} ${words[i + 1]}` };
+      }
+    }
+  }
+  return null;
 }
 
 const CREDIBLE_DOMAINS = new Set([

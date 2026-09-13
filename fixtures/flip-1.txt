@@ -1,0 +1,26 @@
+Subject: Call for Papers – Nordic Workshop on Sustainable Computing Systems (NWSCS 2027)
+
+Dear colleague,
+
+We are pleased to invite submissions to the Nordic Workshop on Sustainable Computing Systems
+(NWSCS 2027), a small single-track workshop to be held 15-16 March 2027 in Espoo, Finland.
+
+The workshop welcomes short papers (4-6 pages) on energy-aware software, green data centres
+and carbon-aware scheduling. Every submission receives at least three peer reviews, and
+authors are notified of decisions within eight weeks of the submission deadline. Accepted
+papers will appear in the workshop's online proceedings.
+
+Invited speakers:
+- Dr. Clara Frescati, Stockholm University (Keynote) – c.frescati@su.example
+- Prof. Livia Albano, KTH Royal Institute of Technology (Invited talk) – livia.albano@kth.example
+
+Important dates:
+- Paper submission: 30 November 2026
+- Notification of acceptance: 25 January 2027
+
+Registration: EUR 180 (students EUR 90).
+Website: https://www.nwscs-workshop.org
+Contact: program@nwscs-workshop.org
+
+On behalf of the organising committee,
+NWSCS 2027 Organisers

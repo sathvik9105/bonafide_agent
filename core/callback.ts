@@ -130,15 +130,16 @@ export function stripQuotedReply(text: string): string {
   const out: string[] = [];
   for (const line of text.replace(/\r\n/g, '\n').split('\n')) {
     if (/^\s*>/.test(line)) continue;
-    if (/^\s*On\b.*\bwrote:\s*$/i.test(line) || /^-{2,}\s*Original Message\s*-{2,}/i.test(line)) break;
-    if (/^\s*wrote:\s*$/i.test(line) && /^\s*On\b/i.test(out[out.length - 1] ?? '')) {
-      out.pop(); // "On <date>, <name>" wrapped onto its own line
-      break;
-    }
+    if (/^-{2,}\s*Original Message\s*-{2,}/i.test(line)) break;
     if (/^\s*From:\s/i.test(line) && out.some((l) => l.trim())) break;
     out.push(line);
   }
-  return out.join('\n').trim();
+  // Clients wrap "On <date>, <name> <address> wrote:" over several lines (Gmail breaks inside the <address>).
+  // With the quoted lines gone it trails the reply, so strip from the last "On" before a final "wrote:".
+  return out
+    .join('\n')
+    .replace(/\s*\bOn\b(?:(?!\bOn\b)[\s\S]){0,300}?\bwrote:\s*$/i, '')
+    .trim();
 }
 
 const squash = (s: string) => s.replace(/\s+/g, ' ').trim();

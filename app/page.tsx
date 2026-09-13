@@ -334,13 +334,13 @@ export default function Home() {
             <div className="mt-4 overflow-x-auto">
               <table className="w-full table-fixed border-collapse text-left text-sm">
                 <thead>
-                  <tr className="border-b border-zinc-200 text-xs uppercase tracking-wide text-zinc-500">
+                  <tr className="border-b border-zinc-200 text-xs uppercase text-zinc-500">
                     <th className="w-[104px] pb-3 pr-4 font-medium">Result</th>
-                    <th className="w-[64px] pb-3 pr-4 font-medium">Severity</th>
-                    <th className="w-[128px] pb-3 pr-4 font-medium">Check</th>
+                    <th className="w-[72px] pb-3 pr-4 font-medium">Severity</th>
+                    <th className="w-[116px] pb-3 pr-4 font-medium">Check</th>
                     <th className="pb-3 pr-4 font-medium">Evidence</th>
-                    <th className="w-[148px] pb-3 pr-4 font-medium">Source</th>
-                    <th className="w-[60px] pb-3 text-right font-medium">Credits</th>
+                    <th className="w-[136px] pb-3 pr-4 font-medium">Source</th>
+                    <th className="w-[52px] pb-3 text-right font-medium">Credits</th>
                   </tr>
                 </thead>
                 <tbody>

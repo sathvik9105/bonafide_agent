@@ -6,6 +6,7 @@
 //   node --no-warnings --env-file=.env scripts/run-check.ts fixtures/predatory-1.txt --now 2026-09-13
 import { readFileSync } from 'node:fs';
 import { checks } from '../core/checks/index.ts';
+import { createLedger, type CreditLedger } from '../core/credits.ts';
 import type { Check, CheckContext, Finding } from '../core/types.ts';
 import { setCacheEnabled } from '../providers/cache.ts';
 import { extractClaims } from '../providers/llm.ts';
@@ -36,6 +37,12 @@ function printFinding(f: Finding) {
   console.log(`      note:    ${f.note}`);
 }
 
+function printCalls(ledger: CreditLedger, checkId: string) {
+  for (const e of ledger.entries().filter((x) => x.checkId === checkId)) {
+    console.log(`      anakin ${e.action.padEnd(6)} ${String(e.credits).padStart(2)} cr ${e.cached ? '(disk cache)' : '(live)       '} ${e.target}`);
+  }
+}
+
 async function runCheck(check: Check, ctx: CheckContext): Promise<Finding[]> {
   if (!check.appliesTo(ctx.claims)) {
     console.log(`\n■ ${check.id}: not scheduled (appliesTo = false)`);
@@ -44,7 +51,9 @@ async function runCheck(check: Check, ctx: CheckContext): Promise<Finding[]> {
   const t0 = Date.now();
   try {
     const findings = await check.run(ctx);
-    console.log(`\n■ ${check.id}: ${findings.length} finding(s) in ${Date.now() - t0}ms`);
+    const credits = ctx.ledger.spentBy(check.id);
+    console.log(`\n■ ${check.id}: ${findings.length} finding(s) in ${Date.now() - t0}ms, ${credits} credit(s)`);
+    printCalls(ctx.ledger, check.id);
     findings.forEach(printFinding);
     return findings;
   } catch (e) {
@@ -76,7 +85,7 @@ async function main() {
   console.log(`Claims (${Date.now() - t0}ms):\n${JSON.stringify(claims, null, 2)}`);
 
   const selected = ids.length ? checks.filter((c) => ids.includes(c.id)) : checks;
-  const ctx: CheckContext = { claims, rawText, now };
+  const ctx: CheckContext = { claims, rawText, now, ledger: createLedger() };
   const all: Finding[] = [];
   for (const check of selected) all.push(...(await runCheck(check, ctx)));
 
@@ -88,6 +97,7 @@ async function main() {
       `(fatal ${contradicted('fatal')}, major ${contradicted('major')}, minor ${contradicted('minor')}), ` +
       `${count((f) => f.verdict === 'unverifiable')} unverifiable`,
   );
+  console.log(`Anakin credits: ${ctx.ledger.spent()} of ${ctx.ledger.limit} (MAX_CREDITS_PER_RUN)`);
 }
 
 main().catch((e) => {

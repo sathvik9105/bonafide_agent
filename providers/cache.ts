@@ -19,19 +19,29 @@ export function cacheKey(key: string): string {
 
 type Entry<T> = { key: string; storedAt: string; value: T };
 
-/** Return the cached value for `key`, or produce, store and return it. Failures are not cached. */
-export async function cached<T>(key: string, produce: () => Promise<T>): Promise<T> {
-  const file = path.join(CACHE_DIR, `${cacheKey(key)}.json`);
-  if (enabled) {
-    try {
-      return (JSON.parse(await readFile(file, 'utf8')) as Entry<T>).value;
-    } catch {
-      // miss or unreadable entry: fall through and refetch
-    }
+const fileFor = (key: string) => path.join(CACHE_DIR, `${cacheKey(key)}.json`);
+
+/** The cached value for `key`, or undefined on a miss (or when reads are disabled). */
+export async function readCache<T>(key: string): Promise<T | undefined> {
+  if (!enabled) return undefined;
+  try {
+    return (JSON.parse(await readFile(fileFor(key), 'utf8')) as Entry<T>).value;
+  } catch {
+    return undefined;
   }
-  const value = await produce();
+}
+
+export async function writeCache<T>(key: string, value: T): Promise<void> {
   await mkdir(CACHE_DIR, { recursive: true });
   const entry: Entry<T> = { key, storedAt: new Date().toISOString(), value };
-  await writeFile(file, JSON.stringify(entry));
+  await writeFile(fileFor(key), JSON.stringify(entry));
+}
+
+/** Return the cached value for `key`, or produce, store and return it. Failures are not cached. */
+export async function cached<T>(key: string, produce: () => Promise<T>): Promise<T> {
+  const hit = await readCache<T>(key);
+  if (hit !== undefined) return hit;
+  const value = await produce();
+  await writeCache(key, value);
   return value;
 }

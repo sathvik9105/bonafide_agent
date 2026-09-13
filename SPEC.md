@@ -33,6 +33,15 @@ on every run against a fixture (`scripts/run-check.ts --now 2026-09-13`).
   **minor**, with a note saying why. A single check can therefore never reach RED alone
   (two majors). Fatal findings are unaffected.
 - Stage 1 checks must cost 0 credits. Stage 2 checks record their credit cost.
+- **Credit accounting.** Every Anakin call goes through `providers/anakin.ts`, which
+  prices it from the published price list: scrape 1 credit, search 3. The API reports no
+  per-call usage, so the price list is the only source. Disk-cache hits, failed requests
+  and Anakin-side cache hits cost 0.
+  - The run's ledger reserves a call's price before making it and refuses the call if
+    `MAX_CREDITS_PER_RUN` would be exceeded, so the check comes back `unverifiable`.
+  - A check's total cost is written to its first finding's `costCredits`.
+  - Stage 2 never uses Anakin's `generateJson` (+2 credits). Gemini reads the scraped
+    markdown instead.
 - Title lookups in Scopus and DOAJ are for journals only. A conference name is never
   matched against a journal registry.
 - The **registrable domain** of a site is its last two labels, or its last three under
@@ -236,9 +245,35 @@ Applies when `claims.people` is non-empty.
 
 Budget: cap at 2 people, 4 scrapes total.
 
+Implementation rules, all deterministic except `assessSupport()`:
+
+- **Venue site.** Scrape `venueUrl`. If a checked person's surname is missing from it,
+  follow one same-domain link whose text says keynote, speaker, committee, editorial or
+  board. Each person's note records whether they were named on the venue site. This
+  informs the note but not the verdict.
+- **Search.** One search per person: `"<name without titles>" <affiliation>`, 5 results.
+  - A result is **about the person** if its title, snippet or URL contains their surname
+    as a whole word.
+  - It is **institutional** if its domain is academic (`.edu`, `.ac.xx`) or named after
+    the affiliation (`stanford.edu`, `iitb.ac.in`), and it is not a profile aggregator
+    (LinkedIn, ResearchGate, Google Scholar, ORCID, academia.edu, …).
+- **Outcomes, in order:**
+  - No result is about the person → "cannot be found at the stated affiliation":
+    `contradicted`, **major**. The source link is a repeatable web search.
+  - Results name them, but none is institutional → `unverifiable`.
+  - The first institutional result is scraped and passed to `assessSupport()`. If the page
+    mentions the venue and the quoted line is literally on the page → `supported`, with
+    that line as the excerpt.
+  - The page is the person's own but has no mention → `contradicted`, **major**.
+  - The page isn't clearly theirs → `unverifiable`.
+- **One finding per person.** Two contradictions from this check are capped by the
+  one-major-per-check rule.
+
 ### `proceedings.exist` — **MAJOR**
 
-Applies to conferences claiming a prior edition, or journals claiming archives.
+Applies to conferences whose name claims an edition number ≥ 2 or the word "annual".
+Journals are skipped: `Claims` has no archive claim to test, and DOAJ and Scopus already
+cover journal history.
 
 1. Find last year's edition page (search + scrape).
 2. Extract a sample of paper DOIs.
@@ -250,9 +285,38 @@ Applies to conferences claiming a prior edition, or journals claiming archives.
 - DOIs don't resolve → `contradicted`, major
 - Can't determine → `unverifiable`
 
+Implementation rules:
+
+- **Which year.** The previous edition is the event year minus one, where the event year
+  comes from `eventDate`, a year in the name, or `now`.
+- **Search.** `<acronym> <year> proceedings`. Without an acronym, use the quoted base name
+  (edition, year and "annual" removed). 5 results.
+- **Picking the prior edition.** A result counts when its title, snippet or URL mentions
+  the venue (acronym as a whole word, or ≥ 60% of its distinctive words) and contains that
+  year. None → `contradicted`, major.
+- **DOIs.** Scrape that page and take up to 3 DOIs from its markdown.
+  - None listed → `unverifiable`.
+  - None exist in Crossref → `contradicted`, major.
+  - They resolve, but none of their container titles mention this venue →
+    `unverifiable`. Listing other people's DOIs is a known trick, but a mismatched title
+    alone is not proof.
+- **Publisher.** A clear publisher mismatch against `claims.publisher` →
+  `contradicted`, major. Otherwise `supported`.
+
 ### `reports.prior` — **MINOR**
 
-One Anakin Search call (3 credits): `"<venueName>" predatory OR scam OR fake`.
+One Anakin Search call (3 credits): `"<venueName>" predatory OR scam OR fake`. It
+uses the base name, with edition, year, "annual" and the parenthetical removed, because an
+exact quoted "15th … (ICACES-2026)" matches almost nothing. 10 results.
+
+A hit is **credible** when all three hold:
+
+- It is from a university or library domain, a library guide, or a research-integrity or
+  academic-press source (Retraction Watch, Beall's list, Cabell's, Think.Check.Submit,
+  Times Higher Education, Nature, Science, UGC).
+- Its title or snippet uses warning language (predatory, scam, fake, hijacked, fraud,
+  beware, …).
+- It mentions this venue.
 
 - Credible hits (academic blogs, library guides, Retraction Watch, university warning
   pages) → `contradicted`, **minor**, with the strongest link as `sourceUrl`

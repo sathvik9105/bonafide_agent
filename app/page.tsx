@@ -1,12 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import type { CreditSummary } from '../core/credits.ts';
 import type { Plan } from '../core/orchestrator.ts';
 import type { Case, CaseVerdict, Claims, Finding, Outreach, ReplyClass, Severity } from '../core/types.ts';
 
 type MailMode = 'dry' | 'live';
 type CaseState = { case: Case; outreach: Outreach[]; mailMode: MailMode };
-type VerifyResponse = CaseState & { plan: Plan | null };
+type VerifyResponse = CaseState & { plan: Plan | null; credits: CreditSummary | null };
 
 const VERDICT_STYLE: Record<CaseVerdict, { box: string; title: string }> = {
   RED: { box: 'border-red-600 bg-red-50 text-red-950', title: 'RED: evidence contradicts this invitation' },
@@ -296,6 +297,7 @@ export default function Home() {
               <p className="mt-1 text-sm">
                 Planned {result.plan.scheduledCount} of {result.plan.entries.length} checks based on{' '}
                 {result.plan.claimCount} claims.
+                {result.credits && ` Anakin credits spent: ${result.credits.spent} of ${result.credits.limit}.`}
               </p>
               <ul className="mt-2 flex flex-wrap gap-2 text-xs">
                 {result.plan.entries.map((e) => (
@@ -335,6 +337,7 @@ export default function Home() {
                     <th className="py-2 pr-3">Check</th>
                     <th className="py-2 pr-3">Evidence</th>
                     <th className="py-2 pr-3">Source</th>
+                    <th className="py-2 pr-3 text-right">Credits</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -363,6 +366,7 @@ export default function Home() {
                           <span className="text-zinc-400">—</span>
                         )}
                       </td>
+                      <td className="py-2 pr-3 text-right tabular-nums text-zinc-500">{f.costCredits || ''}</td>
                     </tr>
                   ))}
                 </tbody>

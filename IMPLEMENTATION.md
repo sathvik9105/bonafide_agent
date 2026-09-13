@@ -24,11 +24,13 @@ bonafide/
     scoring.ts                  # the rule engine. NO LLM.
     normalise.ts                # pure helpers: titles, ISSNs, domains, dates
     publisher.ts                # deterministic publisher-name comparison
+    credits.ts                  # per-run Anakin credit ledger (MAX_CREDITS_PER_RUN)
     narrate.ts                  # LLM writes the summary + disposition email
     callback.ts                 # speaker targeting, outreach, disposition, replies, poller
     checks/
       index.ts                  # registry of all checks
       finding.ts                # finding builder, guard(), quoteLine()
+      web.ts                    # shared helpers for the Stage 2 web checks
       identity-url-match.ts
       indexing-scopus.ts
       indexing-doaj.ts

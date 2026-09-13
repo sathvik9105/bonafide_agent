@@ -1,3 +1,5 @@
+import type { CreditLedger } from './credits.ts';
+
 export type Severity = 'fatal' | 'major' | 'minor' | 'info';
 export type FindingVerdict = 'supported' | 'contradicted' | 'unverifiable';
 
@@ -66,6 +68,7 @@ export type CheckContext = {
   claims: Claims;
   rawText: string; // original invitation, for literal excerpts
   now: Date; // injectable so date checks reproduce against fixtures
+  ledger: CreditLedger; // Anakin credits for this run; Stage 1 checks never touch it
 };
 
 export type Check = {

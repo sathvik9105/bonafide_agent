@@ -15,6 +15,10 @@ One line per surprise. Newest at the bottom.
 - **Scopus xlsx quirks:** after conversion the list has 49,009 sources and 1,178 discontinued titles. Header cells contain embedded newlines ("Top level:\n\nLife Sciences"), so the CSV parser must respect quotes. ISSNs are stored as 8 digits without hyphens.
 - **Fuzzy title match near-miss:** a character-bigram Dice score ≥ 0.92 matched the made-up "International Journal of Advanced *Computing* Research" to the real, inactive "…Advanced *Computer* Research" (0.931). Predatory titles are deliberately one word off real ones, so matching must be word-level and the matched title must always go in the excerpt.
 
+- **Anakin scrape path, verified live:** `POST /v1/scrape` returns 404 "Cannot POST /v1/scrape". `POST /v1/url-scraper` and `POST /v1/url-scraper/scrape` both exist; given an empty body, both return 400 "URL is required". The URL Scraper page is right, and the snippet using `/v1/scrape` is wrong.
+- **Anakin latency, live:** an inline scrape of neurips.cc took 3.5s round trip (`durationMs` 1829, 12.6k chars of markdown). A search took 0.76s.
+- **Anakin reports no credit usage per call.** Responses carry only `x-ratelimit-limit/remaining/reset` headers, with 20/min for inline scrape and 120/min for search, and no credit field in the body. Per-call cost must come from the published price table.
+
 ## Phase 1 — 2026-09-13
 
 - **Scopus has no homepage URL.** None of the 52 columns in the Aug 2026 list holds a URL, and the whole workbook contains one web address, in a single cell. `identity.url_match` gets homepages from DOAJ only (`bibjson.ref.journal`) and falls back to comparing publishers for Scopus-only journals.
@@ -27,4 +31,11 @@ One line per surprise. Newest at the bottom.
   - The IMAP poller searches per `[BF-xxxxxx]` token rather than scanning the inbox, so a busy personal Gmail stays cheap (about 4.7s per sweep, most of it connecting). Message bodies must be downloaded after the `fetch()` iterator finishes, because imapflow can't run other commands mid-stream.
   - Gemini's fast model writes serviceable outreach emails but not always grammatical ones ("verifying an invitation details"). Speaker emails therefore use the fixed SPEC.md template only. The LLM still drafts the disposition email, with the template as fallback.
   - Without `BONAFIDE_USER_NAME`, emails are signed with `MAIL_FROM_NAME` ("BonaFide Verification"), which is exactly the branding SPEC.md says gets binned. Set it before any live run.
+- **Phase 3 (Anakin checks), measured 2026-09-13:**
+  - **No balance or usage endpoint.** `GET /v1/credits`, `/v1/usage`, `/v1/account`, `/v1/me`, `/v1/balance` and similar all return 404. Credit figures come from the anakin.io/pricing table (scrape 1, search 3, +2 for `generateJson`; failures and Anakin-side cache hits are free). Reconcile totals against the dashboard.
+  - **Scrape responses have a `cached` boolean.** Anakin runs its own cache, and a hit there is free, so the provider charges 0 when it is true.
+  - **A scrape of an unregistered domain** (`icaces-conference.org`) fails without a charge. The provider caches the failure, so reruns don't retry it.
+  - **Anakin search matches loosely.** `"Jane Example" Stanford University` returned five pages about Jane Stanford, and `ICACES 2025 proceedings` returned ICCAS 2025 pages. Whole-word surname and venue matching is what stops these becoming false "found" results.
+  - **Actual cost, `predatory-1` Stage 2:** people.reality 6 (2 searches; the venue scrape failed free), proceedings.exist 3 (search found no prior edition, so no scrape), reports.prior 3. **12 credits.** On `legit-1`, only reports.prior applies: **3 credits**. The same run again from disk cache: **0**.
+  - **Session spend:** 4 (smoke test) + 12 + 3 = **19 credits**.
 - **Node 22 can run the TypeScript sources directly** once imports use `.ts` extensions (`allowImportingTsExtensions` in tsconfig). No tsx or build step is needed for scripts.

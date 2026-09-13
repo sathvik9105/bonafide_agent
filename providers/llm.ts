@@ -2,7 +2,7 @@
 import { GoogleGenAI } from '@google/genai';
 import { z } from 'zod';
 import type { Claims, ReplyClass } from '../core/types.ts';
-import { cached } from './cache.ts';
+import { cached, cacheKey } from './cache.ts';
 
 let client: GoogleGenAI | null = null;
 
@@ -167,6 +167,40 @@ Return JSON: {"body": "<the email body with \\n line breaks>"}`;
     const { body } = await generateValidated(model, prompt, EmailBodySchema, 'writeDispositionEmail');
     return body;
   });
+}
+
+// ---------------------------------------------------------------- assessSupport
+
+const SupportSchema = z.object({
+  personIdentified: z.boolean(),
+  mentionsVenue: z.boolean(),
+  quote: z.string().nullable(),
+});
+
+export type SupportAssessment = z.infer<typeof SupportSchema>;
+
+const MAX_PAGE_CHARS = 40_000;
+
+/** Semantic, not string match: is this the person's own page, and does it mention the venue in any form? */
+export async function assessSupport(input: {
+  pageText: string;
+  personName: string;
+  affiliation: string | null;
+  venueName: string;
+}): Promise<SupportAssessment> {
+  const model = requireEnv('GEMINI_MODEL_EXTRACT');
+  const page = input.pageText.slice(0, MAX_PAGE_CHARS);
+  const who = `${input.personName}${input.affiliation ? ` (${input.affiliation})` : ''}`;
+  const prompt = `Below is the text of a web page found while checking whether ${who} is involved in "${input.venueName}". Answer from the page text only.
+- personIdentified: true if the page is about or by ${input.personName}: a personal homepage, staff profile, CV or publication list.
+- mentionsVenue: true if the page mentions "${input.venueName}" in any form: full name, acronym, or abbreviation with or without a year. For example "Program Committee, ICCSE'26" counts for "International Conference on Computer Science and Engineering 2026". A different event with a similar name does not count.
+- quote: the exact line from the page that mentions the venue, copied verbatim, or null.
+Return JSON: {"personIdentified": boolean, "mentionsVenue": boolean, "quote": string | null}
+
+PAGE:
+${page}`;
+  const key = `gemini:${model}:assessSupport:v1:${who}|${input.venueName}|${cacheKey(page)}`;
+  return cached(key, () => generateValidated(model, prompt, SupportSchema, 'assessSupport'));
 }
 
 // ---------------------------------------------------------------- classifyReply

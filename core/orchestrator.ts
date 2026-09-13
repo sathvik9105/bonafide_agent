@@ -4,13 +4,14 @@ import { extractClaims } from '../providers/llm.ts';
 import { createCase, getCase, listOutreach, updateCase } from '../store/db.ts';
 import { noAddressFinding, pickSpeakerTargets, sendDisposition, startOutreach } from './callback.ts';
 import { checks as registry } from './checks/index.ts';
+import { createLedger, summarise, type CreditSummary } from './credits.ts';
 import { truncate } from './normalise.ts';
 import { capMajorsPerCheck, score } from './scoring.ts';
 import type { Case, Check, CheckContext, Claims, Finding, Outreach } from './types.ts';
 
 export type PlanEntry = { id: string; stage: 1 | 2; scheduled: boolean };
 export type Plan = { claimCount: number; scheduledCount: number; entries: PlanEntry[] };
-export type VerifyResult = { case: Case; plan: Plan | null; outreach: Outreach[] };
+export type VerifyResult = { case: Case; plan: Plan | null; outreach: Outreach[]; credits: CreditSummary };
 export type VerifyOptions = {
   now?: Date;
   /** This run's opt-in to live email. Still requires MAIL_MODE=live on the server. */
@@ -67,15 +68,22 @@ function crashFinding(check: Check, reason: unknown): Finding {
   };
 }
 
+/** Runs a stage in parallel. Each check's credits land on its first finding so they aren't double-counted. */
 async function runStage(scheduled: Check[], ctx: CheckContext): Promise<Finding[]> {
   const settled = await Promise.allSettled(scheduled.map((check) => check.run(ctx)));
-  return settled.flatMap((r, i) => (r.status === 'fulfilled' ? r.value : [crashFinding(scheduled[i], r.reason)]));
+  return settled.flatMap((r, i) => {
+    const check = scheduled[i];
+    const findings = r.status === 'fulfilled' ? r.value : [crashFinding(check, r.reason)];
+    const credits = ctx.ledger.spentBy(check.id);
+    return findings.map((f, j) => ({ ...f, costCredits: j === 0 ? credits : 0 }));
+  });
 }
 
 export async function verifyInvitation(rawInput: string, opts: VerifyOptions = {}): Promise<VerifyResult> {
   const now = opts.now ?? new Date();
   const live = opts.live === true;
   const created = createCase(rawInput);
+  const ledger = createLedger();
 
   let claims: Claims;
   try {
@@ -96,13 +104,13 @@ export async function verifyInvitation(rawInput: string, opts: VerifyOptions = {
       },
     ];
     updateCase(created.id, { findings, verdict: score(findings), status: 'complete' });
-    return { case: getCase(created.id) ?? created, plan: null, outreach: [] };
+    return { case: getCase(created.id) ?? created, plan: null, outreach: [], credits: summarise(ledger) };
   }
   updateCase(created.id, { claims });
 
   const plan = planChecks(claims);
   const scheduledIds = new Set(plan.entries.filter((e) => e.scheduled).map((e) => e.id));
-  const ctx: CheckContext = { claims, rawText: rawInput, now };
+  const ctx: CheckContext = { claims, rawText: rawInput, now, ledger };
 
   const findings: Finding[] = [];
   for (const stage of [1, 2] as const) {
@@ -128,5 +136,7 @@ export async function verifyInvitation(rawInput: string, opts: VerifyOptions = {
     sendDisposition(created.id, claims, capped, verdict, { live }),
   ]);
 
-  return { case: getCase(created.id) ?? created, plan, outreach: listOutreach(created.id) };
+  const credits = summarise(ledger);
+  console.log(`[credits] case ${created.id}: ${credits.spent} of ${credits.limit} spent ${JSON.stringify(credits.byCheck)}`);
+  return { case: getCase(created.id) ?? created, plan, outreach: listOutreach(created.id), credits };
 }

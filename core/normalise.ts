@@ -134,6 +134,66 @@ export function parseDate(s: string | null | undefined): Date | null {
   return null;
 }
 
+const HONORIFIC = /^(prof|professor|dr|mr|mrs|ms|mx|sir|assoc|asst)\.?$/i;
+
+/** Name without titles: "Prof. Jane Example" -> "Jane Example". */
+export function plainName(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter((t) => t && !HONORIFIC.test(t))
+    .join(' ')
+    .replace(/,$/, '')
+    .trim();
+}
+
+export function surnameOf(name: string): string | null {
+  const tokens = stripDiacritics(plainName(name))
+    .split(/[\s,]+/)
+    .map((t) => t.replace(/[^\p{L}'-]/gu, ''))
+    .filter(Boolean);
+  return tokens.length ? tokens[tokens.length - 1] : null;
+}
+
+/** Whole-word, case- and accent-insensitive match. */
+export function mentionsWord(text: string, word: string): boolean {
+  const escaped = stripDiacritics(word).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(^|[^\\p{L}\\p{N}])${escaped}($|[^\\p{L}\\p{N}])`, 'iu').test(stripDiacritics(text));
+}
+
+export function editionNumber(venueName: string): number | null {
+  const m = venueName.match(/\b(\d{1,3})(?:st|nd|rd|th)\b/i);
+  return m ? Number(m[1]) : null;
+}
+
+// Umbrella acronyms that don't identify one venue.
+const UMBRELLA_ACRONYMS = new Set(['IEEE', 'ACM', 'IFIP', 'IET', 'SPIE', 'AAAI', 'USENIX']);
+
+/** "ICACES" from "... (ICACES-2026)"; otherwise a distinctive all-caps token in the name. */
+export function venueAcronym(venueName: string): string | null {
+  const pick = (s: string) =>
+    s
+      .split(/[^A-Za-z&]+/)
+      .find((t) => /^[A-Z][A-Z&]{2,11}$/.test(t) && !UMBRELLA_ACRONYMS.has(t)) ?? null;
+  for (const m of venueName.matchAll(/\(([^)]*)\)/g)) {
+    const found = pick(m[1]);
+    if (found) return found;
+  }
+  return pick(venueName.replace(/\([^)]*\)/g, ' '));
+}
+
+/** Venue name without edition, year, "annual" or parentheticals, for searching across years. */
+export function baseVenueName(venueName: string): string {
+  return venueName
+    .replace(/\([^)]*\)/g, ' ')
+    .replace(/\b\d{1,3}(st|nd|rd|th)\b/gi, ' ')
+    .replace(/\bannual\b/gi, ' ')
+    .replace(/\b(19|20)\d{2}\b/g, ' ')
+    .replace(/['’]\d{2}\b/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^the\s+/i, '');
+}
+
 export function startOfUtcDay(d: Date): Date {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
 }

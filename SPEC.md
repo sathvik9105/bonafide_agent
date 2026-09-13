@@ -380,7 +380,7 @@ Outreach email template — keep it this short:
 > Dear Prof. [Name],
 >
 > I'm a student verifying a conference invitation before submitting. The website for
-> [Venue Name] lists you as [role]. Could you confirm whether you agreed to take part?
+> [Venue Name] lists your role as "[role]". Could you confirm whether you agreed to take part?
 >
 > If your name is being used without your knowledge, I'd be glad to send you the page.
 >

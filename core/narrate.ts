@@ -27,18 +27,13 @@ function looksLikeEmail(body: string, sender: string): boolean {
   return b.length >= 120 && b.length <= 1500 && /^dear\b/i.test(b) && b.includes(sender) && !/[[\]{}<>]|```/.test(b);
 }
 
-/** Role as it reads mid-sentence: "Invited talk" -> "invited talk". Acronyms like "TPC" keep their case. */
-export function roleInSentence(role: string): string {
-  return role.trim().replace(/\b[A-Z][a-z]+\b/g, (word) => word.toLowerCase());
-}
-
 function outreachTemplate(person: Person, claims: Claims, sender: string): string {
   const kind = claims.venueType === 'journal' ? 'a journal invitation' : 'a conference invitation';
   const where = claims.venueUrl ? `The website for ${claims.venueName}` : `The invitation for ${claims.venueName}`;
   return [
     `Dear ${person.name},`,
     '',
-    `I'm a student verifying ${kind} before submitting. ${where} lists you as ${roleInSentence(person.role)}. Could you confirm whether you agreed to take part?`,
+    `I'm a student verifying ${kind} before submitting. ${where} lists your role as "${person.role.trim()}". Could you confirm whether you agreed to take part?`,
     '',
     "If your name is being used without your knowledge, I'd be glad to send you the page.",
     '',

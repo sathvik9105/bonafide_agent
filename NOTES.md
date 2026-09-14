@@ -48,6 +48,8 @@ One line per surprise. Newest at the bottom.
   - **A transient Gemini `fetch failed` during reply classification** used to record UNCLEAR. Because the first reply wins, that speaker's real CONFIRMS was then lost for good. It surfaced while testing flip-1 and would have killed a live-demo flip. The reply is now left unrecorded and retried.
 - **Node 22 can run the TypeScript sources directly** once imports use `.ts` extensions (`allowImportingTsExtensions` in tsconfig). No tsx or build step is needed for scripts.
 - **Wire build filed for Retraction Watch's Hijacked Journal Checker** (2026-09-14): `POST /v1/wire/build-request` — id `988aaebe-8811-4882-986f-3715c2fcf80a`, status `pending`, 200 credits charged. Poll with `scripts/check-wire-build.ts 988aaebe-8811-4882-986f-3715c2fcf80a`.
+  - **It succeeded** (`completed_at` 2026-09-14T10:27:27Z, confirmed by polling), published as `act_retractionwatch_com_hijacked_journal_check` in catalog `retractionwatch-com`: 1 credit, no auth, one `query` param. The build-request record's `actions` array stays empty after success, so the action ID has to come from the catalog, not the build. Live responses: PLOS ONE `1932-6203` → `on_list: false`; "Journal of Talent Development and Excellence" → `on_list: true`, clone `iratde.com`, legitimate ISSN `1869-0459`, `legitimate_homepage` empty. The poll response nests the payload as `data.data`.
+  - **Catalog survey, same day:** 964 Wire catalogs, 71 in `research` (publishers and indexes: Crossref, OpenAlex, PubMed, PLOS, arXiv…). `retractionwatch-com` is the only entry about research integrity.
 
 ## Phase 3.5 — `venue.structure` (Anakin Map), 2026-09-14
 

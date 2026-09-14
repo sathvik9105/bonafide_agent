@@ -12,6 +12,8 @@ const base = (process.env.ANAKIN_BASE_URL ?? '').replace(/\/$/, '');
 const apiKey = process.env.ANAKIN_API_KEY ?? '';
 
 type Call = { status: number; ms: number; body: unknown; creditHeaders: Record<string, string>; cached: boolean };
+type ScrapeBody = { id?: string; status?: string; markdown?: string; durationMs?: number };
+type SearchBody = { results?: { title?: string; url?: string }[] };
 
 async function post(path: string, payload: unknown, cacheable: boolean): Promise<Call> {
   const key = createHash('sha256').update(`POST ${path} ${JSON.stringify(payload)}`).digest('hex');
@@ -42,7 +44,7 @@ async function post(path: string, payload: unknown, cacheable: boolean): Promise
   return call;
 }
 
-async function get(path: string): Promise<{ status: number; body: any }> {
+async function get(path: string): Promise<{ status: number; body: ScrapeBody | null }> {
   const res = await fetch(`${base}${path}`, { headers: { 'X-API-Key': apiKey } });
   return { status: res.status, body: await res.json().catch(() => null) };
 }
@@ -65,7 +67,7 @@ async function probePaths() {
 
 async function smokeScrape(): Promise<boolean> {
   let r = await post('/v1/url-scraper/scrape', { url: SCRAPE_URL }, true);
-  let body = r.body as any;
+  let body = r.body as ScrapeBody | null;
   if (r.status === 202 && body?.id) {
     console.log(`[scrape] 202 after ${r.ms}ms, polling job ${body.id}`);
     const t0 = Date.now();
@@ -93,8 +95,8 @@ async function smokeScrape(): Promise<boolean> {
 
 async function smokeSearch(): Promise<boolean> {
   const r = await post('/v1/search', { prompt: SEARCH_PROMPT, limit: 3 }, true);
-  const body = r.body as any;
-  const results = Array.isArray(body?.results) ? body.results : [];
+  const body = r.body as SearchBody | null;
+  const results = body?.results ?? [];
   const ok = r.status === 200 && results.length > 0;
   console.log(`[search] ${ok ? 'PASS' : 'FAIL'} status=${r.status} ${r.ms}ms cached=${r.cached} results=${results.length}`);
   console.log(`  credit headers: ${JSON.stringify(r.creditHeaders)} credit fields: ${JSON.stringify(creditFields(body))}`);

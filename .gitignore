@@ -43,5 +43,7 @@ next-env.d.ts
 # local
 !.env.example
 /cache/
-/bonafide.db*
+*.db
+*.db-shm
+*.db-wal
 /data/*.xlsx

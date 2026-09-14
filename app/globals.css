@@ -1,20 +1,158 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+ * Every colour in the app is a token defined here. Components only use the Tailwind names mapped in
+ * @theme below (bg-surface, text-ink-muted, border-line, ...). The dark theme is tuned separately:
+ * elevated surfaces are lighter than the canvas, tints are low-saturation, and text/pill colours are
+ * lightened to keep contrast rather than inverted.
+ */
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+  --canvas: #ffffff;
+  --surface: #ffffff;
+  --surface-muted: #f5f5f7;
+  --ink: #18181b;
+  --ink-muted: #52525b;
+  --ink-subtle: #686872;
+  --line: #e4e4e7;
+  --line-strong: #c9c9d0;
+  --accent: #4f46e5;
+  --accent-hover: #3f37c9;
+  --button: #4f46e5;
+  --button-hover: #4338ca;
+  --button-ink: #ffffff;
+  --focus-ring: #c7d2fe;
+  --code: #f4f4f5;
+  --code-ink: #3f3f46;
+  --bad-line: #dc2626;
+  --bad-bg: #fef2f2;
+  --bad-fg: #7f1d1d;
+  --bad-dot: #dc2626;
+  --warn-line: #d97706;
+  --warn-bg: #fffbeb;
+  --warn-fg: #713f12;
+  --good-line: #059669;
+  --good-bg: #ecfdf5;
+  --good-fg: #064e3b;
+  --good-dot: #059669;
+  --neutral-dot: #8b8b94;
+  --fatal-bg: #fee2e2;
+  --fatal-fg: #991b1b;
+  --major-bg: #ffedd5;
+  --major-fg: #9a3412;
+  --minor-bg: #fef3c7;
+  --minor-fg: #854d0e;
+  --good-pill-bg: #d1fae5;
+  --good-pill-fg: #065f46;
+  --neutral-pill-bg: #f0f0f2;
+  --neutral-pill-fg: #52525b;
+  --notice-bg: #eef2ff;
+  --notice-line: #c7d2fe;
+  --notice-fg: #312e81;
+  --tab-track: #e8e8ed;
+  --tab-active: #ffffff;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --canvas: #0e1014;
+  --surface: #161920;
+  --surface-muted: #1e222a;
+  --ink: #e8eaef;
+  --ink-muted: #b3b8c3;
+  --ink-subtle: #939aa7;
+  --line: #272c36;
+  --line-strong: #3b4250;
+  --accent: #a5b4fc;
+  --accent-hover: #c7d2fe;
+  --button: #818cf8;
+  --button-hover: #a5b4fc;
+  --button-ink: #0e1014;
+  --focus-ring: #3730a3;
+  --code: #0f1217;
+  --code-ink: #d4d7de;
+  --bad-line: #f87171;
+  --bad-bg: #251619;
+  --bad-fg: #fecaca;
+  --bad-dot: #f87171;
+  --warn-line: #fbbf24;
+  --warn-bg: #231d12;
+  --warn-fg: #fde68a;
+  --good-line: #34d399;
+  --good-bg: #112420;
+  --good-fg: #a7f3d0;
+  --good-dot: #34d399;
+  --neutral-dot: #737a88;
+  --fatal-bg: #3d1b1f;
+  --fatal-fg: #fca5a5;
+  --major-bg: #3a2512;
+  --major-fg: #fdba74;
+  --minor-bg: #342d10;
+  --minor-fg: #fde047;
+  --good-pill-bg: #0f2e25;
+  --good-pill-fg: #6ee7b7;
+  --neutral-pill-bg: #242934;
+  --neutral-pill-fg: #b3b8c3;
+  --notice-bg: #1c1d3a;
+  --notice-line: #3d4185;
+  --notice-fg: #c7d2fe;
+  /* Selected tab is raised above its track in both themes, so dark needs its own pair. */
+  --tab-track: #0a0c10;
+  --tab-active: #2a303b;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-subtle: var(--ink-subtle);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-button: var(--button);
+  --color-button-hover: var(--button-hover);
+  --color-button-ink: var(--button-ink);
+  --color-focus-ring: var(--focus-ring);
+  --color-code: var(--code);
+  --color-code-ink: var(--code-ink);
+  --color-bad-line: var(--bad-line);
+  --color-bad-bg: var(--bad-bg);
+  --color-bad-fg: var(--bad-fg);
+  --color-bad-dot: var(--bad-dot);
+  --color-warn-line: var(--warn-line);
+  --color-warn-bg: var(--warn-bg);
+  --color-warn-fg: var(--warn-fg);
+  --color-good-line: var(--good-line);
+  --color-good-bg: var(--good-bg);
+  --color-good-fg: var(--good-fg);
+  --color-good-dot: var(--good-dot);
+  --color-neutral-dot: var(--neutral-dot);
+  --color-fatal-bg: var(--fatal-bg);
+  --color-fatal-fg: var(--fatal-fg);
+  --color-major-bg: var(--major-bg);
+  --color-major-fg: var(--major-fg);
+  --color-minor-bg: var(--minor-bg);
+  --color-minor-fg: var(--minor-fg);
+  --color-good-pill-bg: var(--good-pill-bg);
+  --color-good-pill-fg: var(--good-pill-fg);
+  --color-neutral-pill-bg: var(--neutral-pill-bg);
+  --color-neutral-pill-fg: var(--neutral-pill-fg);
+  --color-notice-bg: var(--notice-bg);
+  --color-notice-line: var(--notice-line);
+  --color-notice-fg: var(--notice-fg);
+  --color-tab-track: var(--tab-track);
+  --color-tab-active: var(--tab-active);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --font-serif: var(--font-fraunces);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--canvas);
+  color: var(--ink);
   font-family: Arial, Helvetica, sans-serif;
 }

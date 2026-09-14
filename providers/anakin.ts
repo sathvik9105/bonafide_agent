@@ -1,13 +1,15 @@
-// Anakin via plain fetch (no SDK): inline URL scrape and web search.
+// Anakin via plain fetch (no SDK): inline URL scrape, web search, and site mapping.
 // Every call goes through the disk cache and the run's credit ledger.
 import { z } from 'zod';
 import type { CreditLedger } from '../core/credits.ts';
 import { readCache, writeCache } from './cache.ts';
 
-// anakin.io/pricing (Sep 2026): scrape 1 credit, search 3. Failed requests and Anakin-side cache hits
-// are free. The API reports no per-call usage, so these constants are the source of every credit figure.
+// anakin.io/pricing (Sep 2026): scrape 1 credit, search 3, map 1. Failed requests and Anakin-side
+// cache hits are free. The API reports no per-call usage, so these constants are the source of
+// every credit figure.
 export const SCRAPE_CREDITS = 1;
 export const SEARCH_CREDITS = 3;
+export const MAP_CREDITS = 1;
 
 const REQUEST_TIMEOUT_MS = 100_000; // the inline scrape holds the connection for up to ~90s
 const POLL_INTERVAL_MS = 3_000;
@@ -155,5 +157,193 @@ export async function search(prompt: string, limit: number, ctx: CallContext): P
   } finally {
     ctx.ledger.refund(SEARCH_CREDITS - charged);
     ctx.ledger.record({ checkId: ctx.checkId, action: 'search', target: prompt, credits: charged, cached: false });
+  }
+}
+
+// ---------------------------------------------------------------- map
+
+// The submit response carries the job id as `jobId`; the poll/result response carries it as `id`
+// instead (verified live 2026-09-14, see NOTES.md). The two schemas are kept separate on purpose
+// so this asymmetry can't silently regress.
+const MapSubmitSchema = z.object({ jobId: z.string().optional(), status: z.string().optional() });
+const MapJobSchema = z.object({
+  id: z.string().optional(),
+  status: z.string(),
+  links: z.array(z.string()).nullable().optional(),
+  totalLinks: z.number().nullable().optional(),
+  error: z.string().nullable().optional(),
+});
+
+export type MapResult = { links: string[] | null; failure: string | null; credits: number; cached: boolean };
+type StoredMap = { links: string[] | null; failure: string | null };
+
+async function waitForMapJob(id: string): Promise<{ status: number; json: unknown }> {
+  const started = Date.now();
+  for (;;) {
+    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+    const res = await call('GET', `/v1/map/${encodeURIComponent(id)}`);
+    const status = MapJobSchema.safeParse(res.json).data?.status;
+    // Unlike scrape's poll endpoint, map's stays 202 (not 200) while status is "processing"
+    // (verified live 2026-09-14) — the HTTP status alone can't signal "done", only the body can.
+    if (res.status >= 400 || status === 'completed' || status === 'failed') return res;
+    if (Date.now() - started > POLL_LIMIT_MS) throw new Error(`map job ${id} did not finish within ${POLL_LIMIT_MS / 1000}s`);
+  }
+}
+
+/**
+ * Discover same-domain URLs under a site (depth 2, up to 100 links). A definitive failure
+ * (bad domain, timeout, etc.) returns links null, is cached, and costs nothing.
+ */
+export async function map(url: string, ctx: CallContext): Promise<MapResult> {
+  const key = `anakin:map:${url}`;
+  const stored = await readCache<StoredMap>(key);
+  if (stored) {
+    ctx.ledger.record({ checkId: ctx.checkId, action: 'map', target: url, credits: 0, cached: true });
+    return { ...stored, credits: 0, cached: true };
+  }
+
+  ctx.ledger.reserve(MAP_CREDITS, `mapping ${url}`);
+  let charged = 0;
+  try {
+    let res = await call('POST', '/v1/map', { url, depth: 2, limit: 100 });
+    if (res.status === 202) {
+      const jobId = MapSubmitSchema.safeParse(res.json).data?.jobId;
+      if (!jobId) throw new Error('Anakin returned 202 without a jobId');
+      res = await waitForMapJob(jobId);
+    }
+    if (isTransient(res.status)) throw new Error(`Anakin map failed: ${errorMessage(res.json, res.status)}`);
+
+    const job = MapJobSchema.safeParse(res.json);
+    let result: StoredMap;
+    if (res.status >= 400 || !job.success) {
+      result = { links: null, failure: errorMessage(res.json, res.status) };
+    } else if (job.data.status !== 'completed') {
+      result = { links: null, failure: job.data.error ?? `map ${job.data.status}` };
+    } else {
+      charged = MAP_CREDITS;
+      result = { links: job.data.links ?? [], failure: null };
+    }
+    await writeCache(key, result);
+    return { ...result, credits: charged, cached: false };
+  } finally {
+    ctx.ledger.refund(MAP_CREDITS - charged);
+    ctx.ledger.record({ checkId: ctx.checkId, action: 'map', target: url, credits: charged, cached: false });
+  }
+}
+
+// ---------------------------------------------------------------- wire: hijacked-journal check
+
+// A Wire action built specifically for this project via wire_build, backed by Retraction Watch's
+// Hijacked Journal Checker list (see NOTES.md). 1 credit, no auth, takes a title or ISSN.
+const HIJACKED_ACTION_ID = 'act_retractionwatch_com_hijacked_journal_check';
+export const HIJACKED_CHECK_CREDITS = 1;
+
+// The submit response names the job `job_id`; the poll response wraps the result two levels deep
+// as `data.data` (an outer envelope with its own status/error, then the actual payload) — verified
+// live 2026-09-14.
+const WireTaskSubmitSchema = z.object({ job_id: z.string().optional(), status: z.string().optional() });
+const HijackedMatchSchema = z.object({
+  hijacked_journal_title: z.string().optional(),
+  hijacked_url: z.string().optional(),
+  legitimate_title: z.string().optional(),
+  legitimate_issn: z.string().optional(),
+  legitimate_homepage: z.string().optional(),
+});
+const HijackedResultSchema = z.object({
+  on_list: z.boolean(),
+  matches: z.array(HijackedMatchSchema).nullable().optional(),
+});
+const WireJobSchema = z.object({
+  status: z.string(),
+  credits_used: z.number().nullable().optional(),
+  data: z
+    .object({
+      status: z.string().optional(),
+      error: z.string().nullable().optional(),
+      data: HijackedResultSchema.nullable().optional(),
+    })
+    .nullable()
+    .optional(),
+});
+
+export type HijackedMatch = {
+  title: string;
+  hijackedUrl: string;
+  legitimateTitle: string;
+  legitimateIssn: string;
+  legitimateHomepage: string;
+};
+export type HijackedCheckResult = {
+  onList: boolean;
+  matches: HijackedMatch[];
+  failure: string | null;
+  credits: number;
+  cached: boolean;
+};
+type StoredHijacked = { onList: boolean; matches: HijackedMatch[]; failure: string | null };
+
+async function waitForWireJob(jobId: string): Promise<{ status: number; json: unknown }> {
+  const started = Date.now();
+  for (;;) {
+    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+    const res = await call('GET', `/v1/wire/jobs/${encodeURIComponent(jobId)}`);
+    const status = WireJobSchema.safeParse(res.json).data?.status;
+    if (res.status >= 400 || status === 'completed' || status === 'failed') return res;
+    if (Date.now() - started > POLL_LIMIT_MS) throw new Error(`wire job ${jobId} did not finish within ${POLL_LIMIT_MS / 1000}s`);
+  }
+}
+
+/**
+ * Look up a journal title or ISSN against Retraction Watch's Hijacked Journal Checker. A
+ * definitive failure (bad query, action unavailable, etc.) returns onList false with a failure
+ * message, is cached, and costs nothing; callers should treat a failure the same as "no match"
+ * and fall through to other evidence, since this is a supplementary, not sole, signal.
+ */
+export async function hijackedJournalCheck(query: string, ctx: CallContext): Promise<HijackedCheckResult> {
+  const key = `anakin:wire:hijacked:${query}`;
+  const stored = await readCache<StoredHijacked>(key);
+  if (stored) {
+    ctx.ledger.record({ checkId: ctx.checkId, action: 'wire', target: query, credits: 0, cached: true });
+    return { ...stored, credits: 0, cached: true };
+  }
+
+  ctx.ledger.reserve(HIJACKED_CHECK_CREDITS, `checking "${query}" against the hijacked-journal list`);
+  let charged = 0;
+  try {
+    let res = await call('POST', '/v1/wire/task', { action_id: HIJACKED_ACTION_ID, params: { query } });
+    if (res.status === 202) {
+      const jobId = WireTaskSubmitSchema.safeParse(res.json).data?.job_id;
+      if (!jobId) throw new Error('Anakin returned 202 without a job_id');
+      res = await waitForWireJob(jobId);
+    }
+    if (isTransient(res.status)) throw new Error(`Anakin Wire task failed: ${errorMessage(res.json, res.status)}`);
+
+    const job = WireJobSchema.safeParse(res.json);
+    let result: StoredHijacked;
+    const envelope = job.success ? job.data.data : undefined;
+    if (res.status >= 400 || !job.success) {
+      result = { onList: false, matches: [], failure: errorMessage(res.json, res.status) };
+    } else if (job.data.status !== 'completed' || envelope?.status !== 'ok' || envelope.error || !envelope.data) {
+      result = { onList: false, matches: [], failure: envelope?.error ?? `wire task ${job.data.status}` };
+    } else {
+      charged = job.data.credits_used ?? HIJACKED_CHECK_CREDITS;
+      const data = envelope.data;
+      result = {
+        onList: data.on_list,
+        matches: (data.matches ?? []).map((m) => ({
+          title: m.hijacked_journal_title ?? '',
+          hijackedUrl: m.hijacked_url ?? '',
+          legitimateTitle: m.legitimate_title ?? '',
+          legitimateIssn: m.legitimate_issn ?? '',
+          legitimateHomepage: m.legitimate_homepage ?? '',
+        })),
+        failure: null,
+      };
+    }
+    await writeCache(key, result);
+    return { ...result, credits: charged, cached: false };
+  } finally {
+    ctx.ledger.refund(HIJACKED_CHECK_CREDITS - charged);
+    ctx.ledger.record({ checkId: ctx.checkId, action: 'wire', target: query, credits: charged, cached: false });
   }
 }

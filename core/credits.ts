@@ -1,7 +1,7 @@
 // Per-run Anakin credit ledger. A paid call reserves its price first, refunds whatever wasn't charged,
 // and is refused once MAX_CREDITS_PER_RUN would be exceeded, so a runaway loop can't drain the budget.
 
-export type CreditAction = 'scrape' | 'search';
+export type CreditAction = 'scrape' | 'search' | 'map' | 'wire';
 
 export type CreditEntry = {
   checkId: string;

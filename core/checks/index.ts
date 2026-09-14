@@ -8,6 +8,7 @@ import * as peopleReality from './people-reality.ts';
 import * as proceedingsExist from './proceedings-exist.ts';
 import * as reportsPrior from './reports-prior.ts';
 import * as timelinePlausibility from './timeline-plausibility.ts';
+import * as venueStructure from './venue-structure.ts';
 
 export const checks: Check[] = [
   // Stage 1: free registries and pure reasoning.
@@ -20,5 +21,6 @@ export const checks: Check[] = [
   // Stage 2: Anakin, costs credits.
   peopleReality,
   proceedingsExist,
+  venueStructure,
   reportsPrior,
 ];

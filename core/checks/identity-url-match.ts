@@ -1,5 +1,6 @@
-// identity.url_match — see SPEC.md. DOAJ homepage vs invitation site (fatal);
-// Scopus publisher fallback when DOAJ has no homepage (major).
+// identity.url_match — see SPEC.md. Retraction Watch hijacked-journal list first (fatal, authoritative);
+// then DOAJ homepage vs invitation site (fatal); Scopus publisher fallback when DOAJ has no homepage (major).
+import { hijackedJournalCheck, type HijackedMatch } from '../../providers/anakin.ts';
 import {
   doajLookup,
   scopusByIssn,
@@ -23,12 +24,25 @@ export function appliesTo(c: Claims): boolean {
   return c.claimedIndexing.length > 0 || c.issn !== null;
 }
 
-export async function run({ claims }: CheckContext): Promise<Finding[]> {
+export async function run({ claims, ledger }: CheckContext): Promise<Finding[]> {
   const claim =
     `${claims.venueName}${claims.issn ? ` (ISSN ${claims.issn})` : ''} is the registered venue` +
     (claims.venueUrl ? ` at ${claims.venueUrl}` : '');
   return guard(meta, claim, async () => {
     const title = claims.venueType === 'conference' ? null : claims.venueName;
+
+    // Authoritative external list, checked first: no LLM judgment involved. A failure (caught
+    // here, not by the outer guard) or "not on the list" both fall straight through to the
+    // DOAJ/Scopus comparison below, unchanged.
+    const hijackQuery = claims.issn ?? title;
+    if (hijackQuery) {
+      try {
+        const { onList, matches } = await hijackedJournalCheck(hijackQuery, { ledger, checkId: id });
+        if (onList && matches.length > 0) return [hijackedFinding(claim, matches[0])];
+      } catch {
+        // Supplementary signal; the DOAJ/Scopus comparison below still runs.
+      }
+    }
 
     const { record: doaj } = await doajLookup({ issn: claims.issn, title });
     if (doaj?.homepage) return [compareHomepage(claims, claim, doaj, doaj.homepage)];
@@ -48,6 +62,20 @@ export async function run({ claims }: CheckContext): Promise<Finding[]> {
         note: 'Neither DOAJ nor Scopus has a record for this venue, so there is no registry identity to compare against.',
       }),
     ];
+  });
+}
+
+const HIJACKED_LIST_URL = 'https://retractionwatch.com/the-retraction-watch-hijacked-journal-checker/';
+
+function hijackedFinding(claim: string, m: HijackedMatch): Finding {
+  return finding(meta, {
+    claim,
+    verdict: 'contradicted',
+    sourceUrl: HIJACKED_LIST_URL,
+    excerpt:
+      `Retraction Watch: "${m.title}" is a hijacked clone of "${m.legitimateTitle}"` +
+      `${m.legitimateIssn ? ` (ISSN ${m.legitimateIssn})` : ''}${m.hijackedUrl ? ` at ${m.hijackedUrl}` : ''}`,
+    note: `This venue matches a known hijacked-journal record on Retraction Watch's list — the real journal is "${m.legitimateTitle}", not this one.`,
   });
 }
 

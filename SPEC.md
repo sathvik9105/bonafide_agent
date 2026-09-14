@@ -32,7 +32,8 @@ on every run against a fixture (`scripts/run-check.ts --now 2026-09-13`).
   `contradicted`/`major` finding, only the first stays major. The rest are shown at
   **minor**, with a note saying why. A single check can therefore never reach RED alone
   (two majors). Fatal findings are unaffected.
-- Stage 1 checks must cost 0 credits. Stage 2 checks record their credit cost.
+- Stage 1 checks must cost 0 credits. Stage 2 checks record their credit cost. One documented
+  exception: `identity.url_match`'s hijacked-journal pre-check (1 credit, see its section below).
 - **Credit accounting.** Every Anakin call goes through `providers/anakin.ts`, which
   prices it from the published price list: scrape 1 credit, search 3. The API reports no
   per-call usage, so the price list is the only source. Disk-cache hits, failed requests
@@ -57,6 +58,23 @@ on every run against a fixture (`scripts/run-check.ts --now 2026-09-13`).
 *The flagship check. This is the one that catches what indexing lookups miss.*
 
 Applies when the venue claims indexing in any registry, or provides an ISSN.
+
+**0. Retraction Watch's Hijacked Journal Checker, checked first.** A Wire action built for this
+project (`act_retractionwatch_com_hijacked_journal_check`, 1 credit, no auth — see NOTES.md)
+queries the list by `claims.issn`, or by title for journals only (never conferences, same
+guard as the Scopus/DOAJ title lookups below). This is an authoritative external list, so a
+hit needs no LLM judgment:
+
+- On the list → `contradicted`, **fatal**, immediately, regardless of what DOAJ/Scopus would
+  otherwise say. `sourceUrl` is the Retraction Watch checker page; `excerpt` names the
+  hijacked title, the legitimate title/ISSN it clones, and the hijacking URL.
+- Not on the list, or the lookup fails → fall through unchanged to steps 1–3 below. This step
+  never produces an `unverifiable` finding of its own; a failure here is silent and
+  supplementary, not a signal.
+
+Exception to the "Stage 1 checks must cost 0 credits" universal rule above: this specific
+sub-step is deliberately Stage 1 despite its bounded cost, because it belongs conceptually
+with the identity check it feeds and only ever runs when that check would run anyway.
 
 **Only DOAJ provides homepages.** The Scopus source list has no homepage or URL column.
 The August 2026 list has 52 columns, and none of them contains a URL. Scopus can
@@ -314,6 +332,35 @@ Implementation rules:
     alone is not proof.
 - **Publisher.** A clear publisher mismatch against `claims.publisher` →
   `contradicted`, major. Otherwise `supported`.
+
+### `venue.structure` — **MAJOR, never fatal**
+
+Applies only to conferences with a `venueUrl`. Never applies to journals: journals have no
+committee/programme page structure to check, and DOAJ/Scopus already cover journal history.
+
+A single Anakin Map call (1 credit) discovers the venue site's same-domain URLs (depth 2,
+limit 100). Classify each URL's path into content categories by keyword: **committee**
+(committee, chairs, organizers, organisers, keynote, speaker), **cfp** (cfp, call-for-papers,
+submission, papers), **dates** (dates, deadline, schedule, program, programme, agenda),
+**proceedings** (proceedings, publication, archive, past), **venue/contact** (venue, contact,
+about, location, register, registration).
+
+This is a weak, corroborating signal, not proof — a real small workshop can legitimately have
+very few pages. The threshold is deliberately conservative so it only fires on a genuinely bare
+site:
+
+- **2 or more categories matched** → `supported`
+- **0 categories matched and 2 or fewer same-domain links total** (a single-page or near-empty
+  site) → `contradicted`, **major**. The note must say something to the effect of "few
+  structured pages found — this alone doesn't prove anything, small legitimate venues can look
+  thin too; treat as corroborating, not decisive." Never fatal: this check alone must never be
+  enough to condemn a venue.
+- **Anything in between** (1 category matched, or few links with no categorized structure) →
+  `unverifiable`, severity **info**. Ambiguous is not evidence either way.
+- Map call fails (domain doesn't resolve, timeout, etc.) → `unverifiable`.
+
+`sourceUrl` is the venue homepage. `excerpt` lists the matched categories (or "no structured
+pages found among N links").
 
 ### `reports.prior` — **MINOR**
 

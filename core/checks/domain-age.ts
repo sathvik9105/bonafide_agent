@@ -1,4 +1,4 @@
-// domain.age — see SPEC.md. RDAP registration age, plus a trivial publisher-lookalike flag.
+// domain.age — see docs/SPEC.md. RDAP registration age, plus a trivial publisher-lookalike flag.
 import { domainLookupUrl, rdapDomain } from '../../providers/registries.ts';
 import { DAY_MS, registrableDomain } from '../normalise.ts';
 import type { CheckContext, Claims, Finding } from '../types.ts';

@@ -163,7 +163,7 @@ export async function search(prompt: string, limit: number, ctx: CallContext): P
 // ---------------------------------------------------------------- map
 
 // The submit response carries the job id as `jobId`; the poll/result response carries it as `id`
-// instead (verified live 2026-09-14, see NOTES.md). The two schemas are kept separate on purpose
+// instead (verified live 2026-09-14, see docs/ENGINEERING_LOG.md). The two schemas are kept separate on purpose
 // so this asymmetry can't silently regress.
 const MapSubmitSchema = z.object({ jobId: z.string().optional(), status: z.string().optional() });
 const MapJobSchema = z.object({
@@ -234,7 +234,7 @@ export async function map(url: string, ctx: CallContext): Promise<MapResult> {
 // ---------------------------------------------------------------- wire: hijacked-journal check
 
 // A Wire action built specifically for this project via wire_build, backed by Retraction Watch's
-// Hijacked Journal Checker list (see NOTES.md). 1 credit, no auth, takes a title or ISSN.
+// Hijacked Journal Checker list (see docs/ENGINEERING_LOG.md). 1 credit, no auth, takes a title or ISSN.
 const HIJACKED_ACTION_ID = 'act_retractionwatch_com_hijacked_journal_check';
 export const HIJACKED_CHECK_CREDITS = 1;
 

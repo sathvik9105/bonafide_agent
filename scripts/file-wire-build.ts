@@ -48,7 +48,7 @@ async function main() {
   console.log(JSON.stringify(body, null, 2));
 
   if (res.status !== 201 || typeof body !== 'object' || body === null || !('build_request' in body)) {
-    console.error('\nBuild request did not return the expected shape. Not logging to NOTES.md.');
+    console.error('\nBuild request did not return the expected shape. Not logging to docs/ENGINEERING_LOG.md.');
     process.exitCode = 1;
     return;
   }
@@ -63,7 +63,7 @@ async function main() {
   console.log(`\nPoll it with: node --env-file=.env scripts/check-wire-build.ts ${br.id}`);
 
   appendFileSync(
-    'NOTES.md',
+    'docs/ENGINEERING_LOG.md',
     `- **Wire build filed for Retraction Watch's Hijacked Journal Checker** (${new Date().toISOString().slice(0, 10)}): ` +
       `\`POST /v1/wire/build-request\` — id \`${br.id}\`, status \`${br.status}\`, ${br.credits_charged ?? '?'} credits charged. ` +
       `Poll with \`scripts/check-wire-build.ts ${br.id}\`.\n`,

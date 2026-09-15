@@ -1,4 +1,4 @@
-// contact.domain — see SPEC.md. No network.
+// contact.domain — see docs/SPEC.md. No network.
 import { emailDomain, freeMailProvider, isAcademicDomain, registrableDomain } from '../normalise.ts';
 import type { CheckContext, Claims, Finding } from '../types.ts';
 import { finding, guard, quoteLine, type CheckMeta } from './finding.ts';

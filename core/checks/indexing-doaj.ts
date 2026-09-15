@@ -1,4 +1,4 @@
-// indexing.doaj — see SPEC.md.
+// indexing.doaj — see docs/SPEC.md.
 import { doajLookup } from '../../providers/registries.ts';
 import type { CheckContext, Claims, Finding } from '../types.ts';
 import { finding, guard, type CheckMeta } from './finding.ts';

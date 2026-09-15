@@ -1,4 +1,4 @@
-// timeline.plausibility — see SPEC.md. No network; dates parsed deterministically.
+// timeline.plausibility — see docs/SPEC.md. No network; dates parsed deterministically.
 import { DAY_MS, parseDate, startOfUtcDay } from '../normalise.ts';
 import type { CheckContext, Finding } from '../types.ts';
 import { finding, guard, quoteLine, type CheckMeta } from './finding.ts';

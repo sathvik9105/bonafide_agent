@@ -1,4 +1,4 @@
-// identity.url_match — see SPEC.md. Retraction Watch hijacked-journal list first (fatal, authoritative);
+// identity.url_match — see docs/SPEC.md. Retraction Watch hijacked-journal list first (fatal, authoritative);
 // then DOAJ homepage vs invitation site (fatal); Scopus publisher fallback when DOAJ has no homepage (major).
 import { hijackedJournalCheck, type HijackedMatch } from '../../providers/anakin.ts';
 import {

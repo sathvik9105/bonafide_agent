@@ -1,4 +1,4 @@
-// proceedings.exist — see SPEC.md. Stage 2: one search + one scrape; DOIs resolve free via Crossref.
+// proceedings.exist — see docs/SPEC.md. Stage 2: one search + one scrape; DOIs resolve free via Crossref.
 import { scrape, search, type CallContext } from '../../providers/anakin.ts';
 import { crossrefWork, type CrossrefWork } from '../../providers/registries.ts';
 import { baseVenueName, editionNumber, venueAcronym } from '../normalise.ts';

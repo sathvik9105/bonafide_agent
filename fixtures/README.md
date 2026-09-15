@@ -1,6 +1,6 @@
 # Fixtures
 
-All four are **synthetic**. Replace `predatory-1.txt` with a real (redacted) invitation when one is to hand.
+All fixtures are **synthetic** except where a row names a real journal. Replace `predatory-1.txt` with a real (redacted) invitation when one is to hand.
 The people in `predatory-1.txt` are invented. No fixture is ever used as an email recipient.
 
 | Fixture | Scenario | Check it exercises |

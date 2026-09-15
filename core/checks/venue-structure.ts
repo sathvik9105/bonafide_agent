@@ -1,4 +1,4 @@
-// venue.structure — see SPEC.md. Stage 2: one Anakin Map call, deliberately conservative.
+// venue.structure — see docs/SPEC.md. Stage 2: one Anakin Map call, deliberately conservative.
 // A weak, corroborating signal: it alone can never be fatal, and it only contradicts a
 // genuinely bare site. Small legitimate workshops must not be flagged by this check alone.
 import { map } from '../../providers/anakin.ts';

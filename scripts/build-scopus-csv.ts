@@ -1,5 +1,5 @@
-// Phase 0 smoke test: Scopus source list -> CSV, then look up by ISSN and by title.
-// Run: node --env-file=.env scripts/smoke-scopus.ts
+// Builds data/scopus-sources.csv from the Scopus source list, then checks lookup by ISSN and by title.
+// Run: node --env-file=.env scripts/build-scopus-csv.ts
 // If data/scopus-sources.csv is missing, converts it from data/scopus-sources.xlsx
 // (Elsevier's download) using unzip + a minimal XML reader, so no xlsx dependency.
 import { execFileSync } from 'node:child_process';
@@ -94,15 +94,26 @@ function parseCsv(text: string): string[][] {
   for (let i = 0; i < text.length; i++) {
     const ch = text[i];
     if (quoted) {
-      if (ch === '"' && text[i + 1] === '"') (cell += '"'), i++;
-      else if (ch === '"') quoted = false;
+      if (ch === '"' && text[i + 1] === '"') {
+        cell += '"';
+        i++;
+      } else if (ch === '"') quoted = false;
       else cell += ch;
     } else if (ch === '"') quoted = true;
-    else if (ch === ',') row.push(cell), (cell = '');
-    else if (ch === '\n') row.push(cell), rows.push(row), (row = []), (cell = '');
-    else cell += ch;
+    else if (ch === ',') {
+      row.push(cell);
+      cell = '';
+    } else if (ch === '\n') {
+      row.push(cell);
+      rows.push(row);
+      row = [];
+      cell = '';
+    } else cell += ch;
   }
-  if (cell || row.length) row.push(cell), rows.push(row);
+  if (cell || row.length) {
+    row.push(cell);
+    rows.push(row);
+  }
   return rows;
 }
 
@@ -178,7 +189,10 @@ function main() {
     let score = 0;
     normed.forEach((t, i) => {
       const s = similarity(q, t);
-      if (s > score) (score = s), (best = i);
+      if (s > score) {
+        score = s;
+        best = i;
+      }
     });
     const matched = score >= 0.92;
     const ok = matched === expect;

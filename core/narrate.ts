@@ -42,7 +42,7 @@ function outreachTemplate(person: Person, claims: Claims, sender: string): strin
   ].join('\n');
 }
 
-/** Speaker emails always use the SPEC.md template: the same wording for every speaker, no LLM. */
+/** Speaker emails always use the docs/SPEC.md template: the same wording for every speaker, no LLM. */
 export function outreachBody(person: Person, claims: Claims): string {
   return outreachTemplate(person, claims, senderName());
 }

@@ -1,4 +1,4 @@
-// indexing.scopus — see SPEC.md.
+// indexing.scopus — see docs/SPEC.md.
 import {
   SCOPUS_SEARCH_URL,
   scopusByIssn,

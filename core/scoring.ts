@@ -1,4 +1,4 @@
-// The rule engine. NO LLM. From IMPLEMENTATION.md, with UNAWARE forcing RED as SPEC.md requires.
+// The rule engine. NO LLM. A speaker reply of DENIES or UNAWARE forces RED (docs/SPEC.md).
 import type { CaseVerdict, Finding } from './types.ts';
 
 /**

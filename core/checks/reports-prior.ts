@@ -1,4 +1,4 @@
-// reports.prior — see SPEC.md. Stage 2: one search, deliberately minor.
+// reports.prior — see docs/SPEC.md. Stage 2: one search, deliberately minor.
 import { search } from '../../providers/anakin.ts';
 import { baseVenueName, truncate } from '../normalise.ts';
 import type { CheckContext, Claims, Finding } from '../types.ts';

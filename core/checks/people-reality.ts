@@ -1,4 +1,4 @@
-// people.reality — see SPEC.md. Stage 2: costs Anakin credits.
+// people.reality — see docs/SPEC.md. Stage 2: costs Anakin credits.
 import { scrape, search, type CallContext } from '../../providers/anakin.ts';
 import { assessSupport } from '../../providers/llm.ts';
 import { mentionsWord, plainName, registrableDomain, surnameOf, truncate } from '../normalise.ts';

@@ -60,7 +60,7 @@ on every run against a fixture (`scripts/run-check.ts --now 2026-09-13`).
 Applies when the venue claims indexing in any registry, or provides an ISSN.
 
 **0. Retraction Watch's Hijacked Journal Checker, checked first.** A Wire action built for this
-project (`act_retractionwatch_com_hijacked_journal_check`, 1 credit, no auth — see NOTES.md)
+project (`act_retractionwatch_com_hijacked_journal_check`, 1 credit, no auth — see ENGINEERING_LOG.md)
 queries the list by `claims.issn`, or by title for journals only (never conferences, same
 guard as the Scopus/DOAJ title lookups below). This is an authoritative external list, so a
 hit needs no LLM judgment:

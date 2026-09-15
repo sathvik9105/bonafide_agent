@@ -17,24 +17,25 @@ nobody watching.** It also drafts the decline or hold email to the sender.
 > verdict based on the answer. A keynote replying "I never agreed to this" turns the case RED on its own.
 > Every guide to spotting predatory venues recommends this step, and in practice nobody does it.
 
-| Live demo | Video | Source |
-|---|---|---|
-| [DEPLOYED_URL] | [VIDEO_URL] | [github.com/sathvik9105/bonafide_agent](https://github.com/sathvik9105/bonafide_agent) |
-
-![Verdict and evidence table](ui-run/01-verdict-evidence.png)
+| Live demo | Source |
+|---|---|
+| [bonafideagent-production.up.railway.app](https://bonafideagent-production.up.railway.app) | [github.com/sathvik9105/bonafide_agent](https://github.com/sathvik9105/bonafide_agent) |
 
 ---
 
 ## Contents
 
-1. [The problem](#the-problem)
-2. [Architecture](#architecture)
-3. [Anakin usage](#anakin-usage)
-4. [Why free sources come first](#why-free-sources-come-first)
-5. [Engineering log](#engineering-log)
-6. [Read, reason, act](#read-reason-act)
-7. [Running locally](#running-locally)
-8. [What I'd build next](#what-id-build-next)
+- [BonaFide](#bonafide)
+  - [Contents](#contents)
+  - [The problem](#the-problem)
+  - [Architecture](#architecture)
+  - [Anakin usage](#anakin-usage)
+    - [Contribution to Anakin's catalog: a Wire Build](#contribution-to-anakins-catalog-a-wire-build)
+  - [Why free sources come first](#why-free-sources-come-first)
+  - [Engineering log](#engineering-log)
+  - [Read, reason, act](#read-reason-act)
+  - [Running locally](#running-locally)
+  - [What I'd build next](#what-id-build-next)
 
 ---
 
@@ -56,6 +57,7 @@ nobody watching.** It also drafts the decline or hold email to the sender.
 Getting it wrong costs a student the registration fee and the paper, which can't be published elsewhere
 afterwards. The people most affected are final-year B.Tech/M.Tech students, PhD candidates and junior
 faculty, heavily in India, where UGC-CARE and Scopus requirements create the incentive predators exploit.
+The full product requirements are in [`docs/PRD.md`](docs/PRD.md).
 
 ---
 
@@ -117,13 +119,8 @@ Three design rules sit around it:
 - **Every check can fail on its own.** A check that can't reach its source returns `unverifiable` and never
   stops the run.
 
-Every check's contract (what it applies to, each outcome, severities) is in [`SPEC.md`](SPEC.md). The spec is
-changed first, then the code.
-
-| | |
-|---|---|
-| ![Check plan](ui-run/02-check-plan.png) | ![Speaker outreach and simulated reply](ui-run/03-speakers.png) |
-| *The check plan is built from the extracted claims.* | *Speaker emails, with a dry-run "simulate reply" control.* |
+Every check's contract (what it applies to, each outcome, severities) is in [`docs/SPEC.md`](docs/SPEC.md).
+The spec is changed first, then the code.
 
 ---
 
@@ -142,7 +139,7 @@ from Anakin's published prices. The Wire action's response includes `credits_use
 | **Wire action** (`/v1/wire/task`) | `identity.url_match` | Looks up the ISSN or journal title on Retraction Watch's Hijacked Journal Checker **before** comparing DOAJ and Scopus. A match is a fatal contradiction linked to Retraction Watch's list | 1 per lookup |
 | **Wire Build** (`/v1/wire/build-request`) | One-off, [`scripts/file-wire-build.ts`](scripts/file-wire-build.ts) | Created the Wire action above (see below) | 200, once |
 
-**Measured costs** (from [`NOTES.md`](NOTES.md), uncached):
+**Measured costs** (from [`docs/ENGINEERING_LOG.md`](docs/ENGINEERING_LOG.md), uncached):
 
 | Run | Credits | Breakdown |
 |---|---|---|
@@ -191,7 +188,8 @@ this build.
 ## Engineering log
 
 These entries are here to show how carefully the evidence was tested, not as a changelog. In a product that
-accuses a venue of fraud, most bugs mean *accusing someone falsely*. The full log is in [`NOTES.md`](NOTES.md).
+accuses a venue of fraud, most bugs mean *accusing someone falsely*. The full log is in
+[`docs/ENGINEERING_LOG.md`](docs/ENGINEERING_LOG.md).
 
 **1. A fuzzy title match nearly confirmed a fake journal.**
 A character-bigram similarity threshold of 0.92 matched the invented *"International Journal of Advanced
@@ -265,8 +263,6 @@ asks the sender to remove the address from their list. Nothing is sent unless th
 `MAIL_MODE=live`. The default, `dry`, writes every email to the database. The API also requires a per-run
 `sendMail: true`, and `MAIL_REDIRECT_TO` sends every live email to a test inbox instead.
 
-![Disposition email](ui-run/04-disposition.png)
-
 ---
 
 ## Running locally
@@ -306,6 +302,19 @@ node --no-warnings --env-file=.env scripts/run-check.ts fixtures/flip-1.txt venu
 (`hijacked-1`), a real Scopus journal with an invented publisher (`hijacked-2`), a mass-mailed fake
 conference (`predatory-1`), a polished fake with nothing to contradict (`predatory-3-polished`), the
 AMBER workshop a speaker reply resolves (`flip-1`), and PLOS ONE (`legit-1`).
+
+**Repository layout**
+
+```
+app/        Next.js UI and API routes (verify, case, simulate-reply, poll-replies)
+core/       orchestrator, claim-driven check plan, checks/, scoring rule, speaker callback
+providers/  all external I/O: Anakin, registries (DOAJ, Crossref, RDAP, Scopus), Gemini, mail, cache
+store/      SQLite schema and queries
+data/       Scopus source list (CSV), rebuilt with scripts/build-scopus-csv.ts
+fixtures/   invitation scenarios used for testing
+scripts/    run-check, Scopus CSV build, Wire Build request and poll
+docs/       SPEC (per-check contracts), PRD, ENGINEERING_LOG
+```
 
 Stack: Next.js 16 (App Router) + TypeScript, Tailwind, SQLite via `better-sqlite3`, Gemini via
 `@google/genai`, `nodemailer` + `imapflow`, Zod. There is no queue, ORM or auth.
